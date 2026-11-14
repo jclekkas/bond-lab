@@ -782,7 +782,7 @@ export default function App() {
         <Desk xp={xp} badges={badges} stage={stage} setStage={setStage} maxSeen={maxSeen} asset={proName(A)} />
       </Section>
 
-      <Callout lead={`Coach \u00b7 Step ${stage + 1}: ${STAGES[stage]}`}>{coach}</Callout>
+      <Callout tone="info" lead={`Coach \u00b7 Step ${stage + 1}: ${STAGES[stage]}`}>{coach}</Callout>
 
       {stage === 0 && (
         <Fragment>
@@ -975,7 +975,7 @@ export default function App() {
           ) : (
             <Fragment>
               <Section heading={`Month ${mk.m}: quotes from ${MM}`}>
-                <Table columns={["Tranche (floor)", "Bid (sell at)", "Ask (buy at)", "Spread now (extra pay)", "Position (you hold)", "Trade"]} rows={[0, 1, 2].map((i: number) => [FL[i], (mids[i] - hw[i]).toFixed(2), (mids[i] + hw[i]).toFixed(2), `${mk.mkt[i].toFixed(0)} bps`, `${mk.pos[i] >= 0 ? "" : "short "}$${Math.abs(mk.pos[i])}M`, <Wrap key={i}><Button label="Buy $1M" onClick={() => trade(i, true)} /><Button label="Sell $1M" onClick={() => trade(i, false)} /></Wrap>])} />
+                <Table columns={["Tranche (floor)", "Bid (sell at)", "Ask (buy at)", "Change (vs. last month)", "Spread now (extra pay)", "Position (you hold)", "Trade"]} rows={[0, 1, 2].map((i: number) => { const prev = mk.hist.length > 1 ? mk.hist[mk.hist.length - 2].px[i] : mids[i]; const ch = mids[i] - prev; return [FL[i], (mids[i] - hw[i]).toFixed(2), (mids[i] + hw[i]).toFixed(2), `${ch > 0.004 ? "\u25b2 +" : ch < -0.004 ? "\u25bc " : ""}${ch.toFixed(2)}`, `${mk.mkt[i].toFixed(0)} bps`, `${mk.pos[i] >= 0 ? "" : "short "}$${Math.abs(mk.pos[i])}M`, <Wrap key={i}><Button label="Buy $1M" onClick={() => trade(i, true)} /><Button label="Sell $1M" onClick={() => trade(i, false)} /></Wrap>]; })} />
                 <Wrap><Button variant="primary" label="Next month" onClick={nextMonth} /><Button label="Restart market" onClick={openMarket} /></Wrap>
               </Section>
               <Grid columns={2}>
