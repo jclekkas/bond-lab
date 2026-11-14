@@ -23,11 +23,11 @@ XP, levels, badges, a quick check in every step and a searchable dictionary keep
 
 A dark trading-terminal layout (light mode too): top bar with the deal, asset class, cash, P&L, XP and clock; a stage rail with progress and locks; the workspace; a collapsible coach and dictionary panel; and a bottom news tape with blotter, working orders and news wire. First visit shows a short plain-English tour; replay it anytime with the **Replay tour** button in the top bar (the ▶ Tour tab on phones), the `G` key, or the `?` help overlay, which can also jump to any tour step. On phones the panels become tabs.
 
-Keyboard: `?` help, `Esc` close, `[` `]` previous/next step, `1`–`8` jump, `T` theme, `C` coach panel, `D` dictionary, `G` replay the tour, `X` switch between Deal Lab and Exchange Builder (where `1`–`7` jump); on the trading floor `B` buy, `S` sell, `N` next month, `P` auto-advance; in the stress test `P` play/pause, `N` step.
+Keyboard: `?` help, `Esc` close, `[` `]` previous/next step, `1`–`8` jump, `T` theme, `C` coach panel, `D` dictionary, `G` replay the tour, `X` switch between Deal Lab and Exchange Builder (where `1`–`8` jump); on the trading floor `B` buy, `S` sell, `N` next month, `P` auto-advance; in the stress test `P` play/pause, `N` step.
 
 ## Exchange Builder: design a new ABS exchange
 
-A second module, opened with the **Deal Lab / Exchange Builder** switch in the top bar (or the `X` key). It walks through what a new marketplace for asset-backed securities would need, in seven steps:
+A second module, opened with the **Deal Lab / Exchange Builder** switch in the top bar (or the `X` key). It walks through what a new marketplace for asset-backed securities would need, in eight steps:
 
 1. **OTC vs. exchange**: an animated side-by-side trade path (phone a dealer vs. a visible order book), with costs by trade size and how TRACE-style trade reporting fits in.
 2. **Marketplace map**: every role (venue operator, market makers, broker-dealers, investors, issuer, clearing house, custodian, depository, data vendor, rating agency, trustee and servicer, regulators, technology) with what each one does, needs, gets paid and wants, plus an animated "who pays whom" money-flow view.
@@ -36,6 +36,7 @@ A second module, opened with the **Deal Lab / Exchange Builder** switch in the t
 5. **Cold start**: pick a first product and spend a limited budget on launch levers to reach critical mass.
 6. **Risks and safeguards**: stress the design with fire-sale, flash-crash, bad-data, manipulation, member-default and vanishing-liquidity scenarios.
 7. **Pitch scorecard**: grades for liquidity, fairness, safety, profitability and adoption, with feedback and badges (Market Architect, Cold Start Solver and others).
+8. **PRFAQ** (press release + FAQ): a 5-page plain-English write-up of a hypothetical exchange, Lighthouse ABS Exchange: a future press release, a customer FAQ and an internal FAQ. Read it in the app (works offline), open a print-friendly view, or download `bond-lab-prfaq.pdf`.
 
 It has its own coach, quizzes, dictionary entries and replayable tour (from the `?` overlay, `G`, or the Replay tour button while in Exchange Builder). The model is synthetic and simplified, for learning only, and every firm in it is fictional.
 
@@ -57,6 +58,7 @@ Pushing to `main` runs `.github/workflows/deploy.yml`, which builds with Vite an
 - `src/term/Terminal.tsx`: the trading-terminal app (state, market model, order handling, screens, shell).
 - `src/term/engine.tsx`: data, asset classes, players, ratings, quizzes and the cash-flow waterfall engine.
 - `src/term/exchange.tsx`: the Exchange Builder module (roles, money flows, market-design model, cold start, risk scenarios, scorecard).
+- `src/term/prfaq.ts`: the PRFAQ text and print stylesheet; `node make-prfaq.mjs` re-renders `public/bond-lab-prfaq.pdf` from it (needs local Chrome).
 - `src/term/ui.tsx`, `src/term/charts.tsx`: UI pieces and SVG charts (price chart, capital stack, gauges, balance chart, flow diagram).
 - `src/term/styles.css`: theme tokens and layout (system fonts only; injected at runtime so the build stays one file).
 - `src/App.tsx` + `src/grok-canvas.tsx`: the original page version, kept as a reference mirror (type-checked, not rendered).

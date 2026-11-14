@@ -5,9 +5,11 @@ import { G, AW, clamp } from "./engine";
 import type { Quiz } from "./engine";
 import { Term, Panel, Metric, Seg, Switch, Slider, Tag, Props, Tbl, QuizBlock } from "./ui";
 import type { Toast } from "./ui";
+import { PRFAQ_BODY, PRFAQ_PDF, prfaqDocument } from "./prfaq";
 
 // ---------- dictionary + awards ----------
 Object.assign(G, {
+  prfaq: ["PRFAQ (press release + FAQ)", "the launch announcement, written first", "A short future press release plus frequently asked questions, written before anything is built, so the team agrees on who the product is for, why it matters and what is still unknown."],
   otc: ["Over-the-counter, OTC", "trading by phone with a dealer", "Trades negotiated privately between two parties, usually a client and a dealer, instead of on a public order book. Most ABS trade this way today."],
   trace: ["TRACE (post-trade reporting)", "the after-the-fact price log", "A US system where dealers report bond trades after they happen, so the public can see prices with a delay. It shows what happened, not what you could trade at now."],
   venue: ["Trading venue / exchange operator", "the marketplace owner", "The company that runs the marketplace: the rules, the matching engine, membership and market data."],
@@ -47,11 +49,11 @@ Object.assign(G, {
 Object.assign(AW, {
   xotc: [30, ""], xmap: [50, "Marketplace Mapper"], xflow: [20, ""], xdesign: [40, ""], xwin: [30, ""],
   xcold: [80, "Cold Start Solver"], xstress: [70, "Stress Tester"], xarch: [100, "Market Architect"],
-  xq0: [20, ""], xq1: [20, ""], xq2: [20, ""], xq3: [20, ""], xq4: [20, ""], xq5: [20, ""], xq6: [20, ""],
+  xq0: [20, ""], xq1: [20, ""], xq2: [20, ""], xq3: [20, ""], xq4: [20, ""], xq5: [20, ""], xq6: [20, ""], xq7: [20, ""],
 });
 
-export const STAGES_X = ["Over-the-counter vs. exchange (how it trades today)", "Market participants (the marketplace map)", "Market design (set the rules)", "Incentives (who wins, who loses)", "Cold-start liquidity (getting the first trades)", "Risks and safeguards (stress the design)", "Pitch scorecard (grade the design)"];
-export const SHORT_X: [string, string][] = [["OTC vs. exchange", "how it trades today"], ["Marketplace map", "who does what"], ["Market design", "set the rules"], ["Incentives", "who wins, who loses"], ["Cold start", "getting first trades"], ["Risks & safeguards", "stress the design"], ["Pitch scorecard", "grade the design"]];
+export const STAGES_X = ["Over-the-counter vs. exchange (how it trades today)", "Market participants (the marketplace map)", "Market design (set the rules)", "Incentives (who wins, who loses)", "Cold-start liquidity (getting the first trades)", "Risks and safeguards (stress the design)", "Pitch scorecard (grade the design)", "PRFAQ (the pitch, written up)"];
+export const SHORT_X: [string, string][] = [["OTC vs. exchange", "how it trades today"], ["Marketplace map", "who does what"], ["Market design", "set the rules"], ["Incentives", "who wins, who loses"], ["Cold start", "getting first trades"], ["Risks & safeguards", "stress the design"], ["Pitch scorecard", "grade the design"], ["PRFAQ", "press release + FAQ"]];
 export const TERMS_X: string[][] = [
   ["otc", "brokerdealer", "rfq", "trace", "clob", "leakage"],
   ["venue", "liqprov", "brokerdealer", "buyside", "ccp", "custodian", "depository", "datavendor"],
@@ -60,6 +62,7 @@ export const TERMS_X: string[][] = [
   ["coldstart", "anchor", "standard", "tba", "loanlevel"],
   ["firesale", "flashcrash", "spoofing", "circuit", "margin", "surveillance", "ccp"],
   ["pricedisc", "systemic", "liqprov"],
+  ["prfaq", "otc", "trace", "ccp", "coldstart", "bestex"],
 ];
 export const QUIZ_X: Quiz[] = [
   { q: "Why is the price of an ABS trade usually hard for outsiders to see before it happens?", opts: ["It's negotiated privately between a dealer and a client (over-the-counter)", "Exchanges hide prices by law", "ABS don't have prices"], ok: 0, why: "Most ABS trade OTC: a client asks a few dealers for quotes. Others only see the price afterwards, through post-trade reporting like TRACE." },
@@ -69,6 +72,7 @@ export const QUIZ_X: Quiz[] = [
   { q: "Why launch a new ABS exchange with very standardized products like agency MBS TBA?", opts: ["They're interchangeable, so many buyers and sellers meet in the same few contracts", "Their prices never move", "Regulators ban other ABS from exchanges"], ok: 0, why: "Liquidity needs many people trading the same thing. Standard contracts pool demand; one-of-a-kind deals split it." },
   { q: "What does a circuit breaker do?", opts: ["Pauses trading briefly when prices move too far, too fast", "Cancels every trade of the day", "Doubles trading fees in a crisis"], ok: 0, why: "A pause gives people time to check information and lets new buyers step in, which can stop a panic spiral." },
   { q: "A venue that charges very high fees to maximize its own revenue will most likely...", opts: ["Push participants back to over-the-counter trading", "Attract more market makers", "Lower bid-ask spreads"], ok: 0, why: "Participants have an alternative (OTC). If the venue is too expensive, liquidity leaves, and an empty venue earns nothing." },
+  { q: "Why write a PRFAQ (press release + FAQ) before building the exchange?", opts: ["It forces the team to explain who it helps and answer the hard questions first", "Regulators require a press release before launch", "It replaces the need for a business plan"], ok: 0, why: "Writing the launch announcement and the toughest questions first shows whether the idea is clear and worth building, before anyone spends money." },
 ];
 
 // ---------- marketplace roles (all fictional) ----------
@@ -688,12 +692,13 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
       case 3: return "Each verdict compares your design with today's over-the-counter market using the same synthetic model. Incentives explain behavior: people support rules that pay them and resist rules that cost them.";
       case 4: return coldOk ? `Critical mass in month ${critM}. A standard first product plus paid liquidity is how many real venues got going.` : "Pick the first product and spend your launch points. Hint: the most standardized products, like agency MBS TBA, make the cold start much easier.";
       case 5: return ran < SCENS.length ? "Run the scenarios to stress your design. Then switch safeguards on and off to see which ones contain which risks, and what they cost." : sev.every((x) => x < 35) ? "Every scenario contained. Check the scorecard: safeguards cost some revenue and participation." : "Some scenarios still do damage. Each card explains why; the matching safeguard or design rule is usually named there.";
+      case 7: return "The PRFAQ turns your design into words: a future press release for customers, then the questions customers and the founding team would ask. Read it here, print it, or download the PDF. Every firm and number is fictional.";
       default: return allB ? "All five grades are B or better. That's a balanced exchange." : "The scorecard summarizes trade-offs. You rarely max everything: more safety and transparency can cost revenue and dealer support.";
     }
   })();
   const TOUR: { sel: string; title: string; body: string }[] = [
     { sel: "mode", title: "Welcome to Exchange Builder", body: "A separate module: design a new marketplace where asset-backed securities could trade. Switch between Deal Lab and Exchange Builder here at any time (or press X)." },
-    { sel: "rail", title: "Seven steps", body: "From how ABS trade today (over the counter, by phone with dealers) to a final pitch scorecard for your exchange." },
+    { sel: "rail", title: "Eight steps", body: "From how ABS trade today (over the counter, by phone with dealers) to a final pitch scorecard and a written PRFAQ (press release + FAQ) for your exchange." },
     { sel: "workspace", title: "Hands-on workspace", body: "Play a trade down both paths, explore a clickable marketplace map, set the rules, plan the launch and stress-test the design. All numbers come from a made-up (synthetic) model; all firms are fictional." },
     { sel: "coach", title: "Coach, terms and quizzes", body: "The coach explains each step in plain English, key terms are listed with their everyday meaning, and each step has a quick check for XP. New exchange terms are in the dictionary too." },
     { sel: "", title: "Replay anytime", body: "You can replay this tour anytime from the Replay tour button, the G key, or the ? help overlay. Badges here: Marketplace Mapper, Cold Start Solver, Stress Tester and Market Architect." },
@@ -707,6 +712,22 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
     { k: "Venue", v: VENUE, hide: true }, { k: "Structure", v: tape[1].d, hide: true },
     { k: "Spread", v: `${o.spread.toFixed(1)} bps`, tone: o.spread < b.spread ? "up" : "down" }, { k: "Approval", v: `${o.approval.toFixed(0)}%`, hide: true, tone: o.approval >= 70 ? "up" : o.approval < 45 ? "down" : "" },
   ];
-  const screens = [S0, S1, S2, S3, S4, S5, S6];
+  const openPrint = (): void => {
+    const w = window.open("", "_blank");
+    if (!w) { toast("Pop-up blocked", "Allow pop-ups for this site, or use Download PDF.", "bad"); return; }
+    w.document.open(); w.document.write(prfaqDocument(true)); w.document.close();
+  };
+  const S7 = (): ReactNode => (
+    <Panel title="PRFAQ: Lighthouse ABS Exchange (hypothetical)" tour="x-prfaq" right={
+      <div className="prfaq-actions">
+        <button className="btn sm" onClick={openPrint} title="Open a clean, printable copy in a new tab">Print-friendly view</button>
+        <a className="btn sm primary" href={PRFAQ_PDF} download title="Download the 5-page PDF">Download PDF</a>
+      </div>
+    }>
+      <div className="callout info" style={{ marginBottom: 12 }}>A PRFAQ (press release + FAQ) is a short planning document: a press release written as if the exchange had already launched, then the questions customers and the founding team would ask. About 5 pages. Everything in it is fictional and illustrative.</div>
+      <article className="prfaq" dangerouslySetInnerHTML={{ __html: PRFAQ_BODY }} />
+    </Panel>
+  );
+  const screens = [S0, S1, S2, S3, S4, S5, S6, S7];
   return { stage, setStage, maxSeen, screen: () => screens[stage](), coach, terms: TERMS_X[stage], quiz: QUIZ_X[stage], quizAns: quiz[stage], answer, TOUR, tape, top };
 }

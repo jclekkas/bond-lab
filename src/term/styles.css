@@ -422,3 +422,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 18px; back
 .xbadge:last-child { border-bottom: 0; padding-bottom: 0; }
 .xbh { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; }
 .xbd { color: var(--text2); font-size: 12px; margin-top: 2px; line-height: 1.45; }
+/* ---------- PRFAQ reader (Exchange Builder step 8) ---------- */
+.prfaq-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.prfaq-actions a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+.prfaq { max-width: 820px; color: var(--text); font-size: 14px; line-height: 1.62; }
+.prfaq .pf-banner { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 16px; }
+.prfaq .pf-kicker { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+.prfaq .pf-h1 { font-size: 24px; line-height: 1.22; margin: 0 0 8px; letter-spacing: -.01em; }
+.prfaq .pf-sub { color: var(--text2); font-style: italic; font-size: 15px; margin: 0 0 14px; }
+.prfaq .pf-h2 { font-size: 19px; margin: 34px 0 6px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+.prfaq .pf-h2 span { font-weight: 400; color: var(--text3); font-size: 13px; }
+.prfaq h3 { font-size: 14.5px; margin: 18px 0 4px; color: var(--text); }
+.prfaq p { margin: 0 0 10px; color: var(--text2); }
+.prfaq p b, .prfaq li b { color: var(--text); }
+.prfaq ul { margin: 4px 0 10px; padding-left: 20px; color: var(--text2); } .prfaq li { margin-bottom: 4px; }
+.prfaq blockquote { margin: 10px 0; padding: 8px 14px; border-left: 3px solid var(--accent); background: var(--accent-bg); border-radius: 0 8px 8px 0; color: var(--text); }
+.prfaq .pf-box { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 6px 0 10px; color: var(--text2); }
+.prfaq .pf-note { font-size: 12px; color: var(--text3); }
+.prfaq .pf-tbl { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 12.5px; display: block; overflow-x: auto; }
+.prfaq .pf-tbl th { text-align: left; color: var(--text3); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--border2); background: var(--panel2); }
+.prfaq .pf-tbl td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text2); }
+.prfaq .pf-tbl td:first-child { color: var(--text); font-weight: 600; }
+@media (max-width: 860px) { .prfaq { font-size: 13.5px; } .prfaq .pf-h1 { font-size: 20px; } .prfaq .pf-tbl { font-size: 12px; } }

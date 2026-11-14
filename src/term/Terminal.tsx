@@ -117,6 +117,7 @@ export default function Terminal() {
   const [mode, setModeRaw] = useState<"deal" | "exchange">(() => (ls.get("bondlab.mode") === "exchange" ? "exchange" : "deal"));
   const isX = mode === "exchange";
   const [tourSet, setTourSet] = useState<"deal" | "exchange">("deal");
+  useEffect(() => { const el = document.querySelector<HTMLElement>(".stage-strip .chip.on"); const st = el?.parentElement; if (el && st) st.scrollTo({ left: el.offsetLeft - 12, behavior: "smooth" }); }, [isX, X.stage, stage]);
   useEffect(() => { document.title = isX ? "Exchange Builder \u00b7 Bond Lab" : "Bond Lab"; }, [isX]);
   const A = ASSETS.find((x) => x.id === aid) ?? A0;
   const xp = awards.reduce((s, k) => s + (AW[k] ? AW[k][0] : 0), 0);
@@ -471,7 +472,7 @@ export default function Terminal() {
     if (isX) {
       if (k === "]") { X.setStage(X.stage + 1); return; }
       if (k === "[") { X.setStage(X.stage - 1); return; }
-      if (/^[1-7]$/.test(k)) { X.setStage(Number(k) - 1); return; }
+      if (/^[1-8]$/.test(k)) { X.setStage(Number(k) - 1); return; }
       return;
     }
     if (k === "]") { setStage(stage + 1); return; }
@@ -994,7 +995,7 @@ export default function Terminal() {
       </header>
 
       <nav className="rail" data-tour="rail" aria-label="Deal steps">
-        <div className="rail-h"><span>{isX ? "Exchange design" : "Deal workflow"}</span><span>{isX ? `${X.maxSeen + 1}/7` : `${Math.min(maxSeen + 1, 8)}/8`}</span></div>
+        <div className="rail-h"><span>{isX ? "Exchange design" : "Deal workflow"}</span><span>{isX ? `${X.maxSeen + 1}/${STAGES_X.length}` : `${Math.min(maxSeen + 1, 8)}/8`}</span></div>
         {isX && STAGES_X.map((s, i) => (
           <button key={s} className={"stage-btn" + (i === X.stage ? " on" : "") + (i < X.maxSeen && i !== X.stage ? " done" : "")} onClick={() => X.setStage(i)} aria-current={i === X.stage ? "step" : undefined} title={s} aria-label={`Step ${i + 1}: ${s}`}>
             <span className="n">{i < X.maxSeen && i !== X.stage ? "\u2713" : i + 1}</span>
@@ -1019,17 +1020,17 @@ export default function Terminal() {
       <main className="main" data-tour="workspace" id="workspace">
         {isX ? <>
         <div className="ws-head">
-          <div><div className="crumb">Exchange Builder {"\u00b7"} step {X.stage + 1} of 7 {"\u00b7"} synthetic model, fictional firms</div><h1>{STAGES_X[X.stage]}</h1></div>
+          <div><div className="crumb">Exchange Builder {"\u00b7"} step {X.stage + 1} of {STAGES_X.length} {"\u00b7"} synthetic model, fictional firms</div><h1>{STAGES_X[X.stage]}</h1></div>
           <div style={{ display: "flex", gap: 6 }}>
             <button className="btn sm" disabled={X.stage === 0} onClick={() => X.setStage(X.stage - 1)} aria-label="Previous step">{"\u2190"} <span className="kbd">[</span></button>
-            <button className="btn sm" disabled={X.stage === 6} onClick={() => X.setStage(X.stage + 1)} aria-label="Next step"><span className="kbd">]</span> {"\u2192"}</button>
+            <button className="btn sm" disabled={X.stage === STAGES_X.length - 1} onClick={() => X.setStage(X.stage + 1)} aria-label="Next step"><span className="kbd">]</span> {"\u2192"}</button>
           </div>
         </div>
         <div className="m-only callout" style={{ marginBottom: 12 }}><div className="cl">Coach</div>{X.coach}</div>
         <div key={"x" + X.stage} style={{ animation: "fadeIn .25s ease" }}>{X.screen()}</div>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
           <button className="btn" disabled={X.stage === 0} onClick={() => X.setStage(X.stage - 1)}>{"\u2190 Back"}</button>
-          {X.stage < 6 ? <button className="btn primary" onClick={() => X.setStage(X.stage + 1)}>{"Next: " + STAGES_X[X.stage + 1] + " \u2192"}</button> : <button className="btn primary" onClick={() => setMode("deal")}>Back to Deal Lab</button>}
+          {X.stage < STAGES_X.length - 1 ? <button className="btn primary" onClick={() => X.setStage(X.stage + 1)}>{"Next: " + STAGES_X[X.stage + 1] + " \u2192"}</button> : <button className="btn primary" onClick={() => setMode("deal")}>Back to Deal Lab</button>}
         </div>
         <div className="m-only" style={{ marginTop: 16 }}><Panel title={`Quick check: step ${X.stage + 1}`}><QuizBlock q={X.quiz} ans={X.quizAns} onAns={X.answer} /></Panel></div>
         </> : <>
@@ -1079,7 +1080,7 @@ export default function Terminal() {
           <div className="modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
             <div className="modal-h"><h3>Keyboard shortcuts</h3><button className="icon-btn" onClick={() => setHelp(false)} aria-label="Close">{"\u2715"}</button></div>
             <div className="modal-b keys">
-              {[["?", "Show or hide this help"], ["Esc", "Close dialogs"], ["[  ]", "Previous / next step"], ["1 \u2013 8", "Jump to a step (1 \u2013 7 in Exchange Builder)"], ["T", "Light / dark mode"], ["X", "Switch module: Deal Lab / Exchange Builder"], ["G", "Replay the guided tour (also the Replay tour button in the top bar)"], ["\u2190 \u2192", "Back / next while the tour is open"], ["C", "Show / hide the coach panel"], ["D", "Open the dictionary"], ["B / S", "Buy / sell on the trading floor (step 7)"], ["N", "Next month (trading) or next waterfall month (stress test)"], ["P", "Auto-advance (trading) or play / pause (stress test)"]].map(([k, d]) => [<span key={k} className="kbd">{k}</span>, <span key={d}>{d}</span>])}
+              {[["?", "Show or hide this help"], ["Esc", "Close dialogs"], ["[  ]", "Previous / next step"], ["1 \u2013 8", "Jump to a step (also in Exchange Builder)"], ["T", "Light / dark mode"], ["X", "Switch module: Deal Lab / Exchange Builder"], ["G", "Replay the guided tour (also the Replay tour button in the top bar)"], ["\u2190 \u2192", "Back / next while the tour is open"], ["C", "Show / hide the coach panel"], ["D", "Open the dictionary"], ["B / S", "Buy / sell on the trading floor (step 7)"], ["N", "Next month (trading) or next waterfall month (stress test)"], ["P", "Auto-advance (trading) or play / pause (stress test)"]].map(([k, d]) => [<span key={k} className="kbd">{k}</span>, <span key={d}>{d}</span>])}
             </div>
             <div className="modal-b" style={{ borderTop: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>

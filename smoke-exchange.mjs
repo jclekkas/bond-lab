@@ -1,8 +1,7 @@
 // Headless smoke test for the Exchange Builder module (desktop + mobile, offline).
 import puppeteer from "puppeteer-core";
 import http from "http"; import fs from "fs";
-const html = fs.readFileSync("dist/index.html");
-const srv = http.createServer((q, s) => { s.writeHead(200, { "content-type": "text/html" }); s.end(html); }).listen(4174);
+const srv = http.createServer((q, s) => { const f = q.url.split("?")[0].endsWith(".pdf") ? "dist" + q.url.split("?")[0] : "dist/index.html"; if (!fs.existsSync(f)) { s.writeHead(404); s.end(); return; } s.writeHead(200, { "content-type": f.endsWith(".pdf") ? "application/pdf" : "text/html" }); s.end(fs.readFileSync(f)); }).listen(4174);
 const browser = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", args: ["--no-sandbox"], headless: "new" });
 const errors = [], external = [], notes = [];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -85,6 +84,19 @@ notes.push("S7 grades: " + (await D.page.evaluate(() => [...document.querySelect
 notes.push("badges: " + (await D.page.evaluate(() => [...document.querySelectorAll(".rail .badge")].map((b) => b.textContent).join(", "))));
 await sleep(4200); await D.page.screenshot({ path: `${SHOTS}/exchange-scorecard.png` });
 ov.push(...(await D.overflow()).map((x) => "S7 " + x));
+// step 8: PRFAQ
+await D.stage(8); await sleep(200);
+notes.push("S8 PRFAQ: " + JSON.stringify(await D.page.evaluate(() => ({ h1: document.querySelector(".prfaq .pf-h1")?.textContent.slice(0, 60), sections: [...document.querySelectorAll(".prfaq .pf-h2")].map((h) => h.textContent), questions: document.querySelectorAll(".prfaq h3").length, words: document.querySelector(".prfaq").innerText.split(/\s+/).length, pdf: document.querySelector(".prfaq-actions a")?.getAttribute("href"), next: !!document.querySelector('[aria-label="Next step"]:not([disabled])') }))));
+const pdfRes = await D.page.evaluate(async () => { const r = await fetch("bond-lab-prfaq.pdf"); const b = new Uint8Array(await r.arrayBuffer()); return r.status + " " + r.headers.get("content-type") + " " + b.length + " " + String.fromCharCode(...b.slice(0, 5)); });
+notes.push("PDF served next to index.html: " + pdfRes);
+const popP = new Promise((r) => browser.once("targetcreated", r));
+await D.click("Print-friendly view", ".prfaq-actions button");
+const tgt = await Promise.race([popP, sleep(3000).then(() => null)]);
+if (tgt) { const pp = await tgt.page(); await sleep(300); notes.push("print view: " + (await pp.evaluate(() => document.title + " | toolbar=" + !!document.querySelector(".pf-toolbar") + " | h2=" + document.querySelectorAll(".pf-h2").length))); await pp.close(); } else errors.push("print view did not open");
+await D.page.evaluate(() => document.querySelector(".main").scrollTo(0, 0)); await sleep(4200);
+await D.page.screenshot({ path: `${SHOTS}/exchange-prfaq.png` });
+ov.push(...(await D.overflow()).map((x) => "S8 " + x));
+await D.key("7"); notes.push("key 7 -> " + (await D.page.evaluate(() => document.querySelector(".ws-head h1").textContent))); await D.key("8");
 // tour replay + shortcuts + dictionary
 await D.key("g"); notes.push("G in exchange mode: " + (await D.tourTitle())); await D.key("Escape");
 await D.click("Replay the guided tour", ".topbar button"); notes.push("Replay button in exchange mode: " + (await D.tourTitle())); await D.key("Escape");
@@ -102,7 +114,7 @@ const M = await open("mobile", { width: 390, height: 844, deviceScaleFactor: 2, 
 await M.click("Exchange Builder", ".mode-switch button"); notes.push("mobile exchange tour: " + (await M.tourTitle()));
 await M.click("Skip tour", ".tour-card button");
 const mov = [];
-for (let n = 1; n <= 7; n++) { await M.stage(n); await sleep(150); if (n === 1) { await M.click("Play the trade"); await sleep(400); } const o = await M.overflow(); if (o.length) mov.push(`S${n} ${o}`); if (n === 3) { await sleep(4200); await M.page.screenshot({ path: `${SHOTS}/exchange-mobile.png` }); } }
+for (let n = 1; n <= 8; n++) { await M.stage(n); await sleep(150); if (n === 1) { await M.click("Play the trade"); await sleep(400); } const o = await M.overflow(); if (o.length) mov.push(`S${n} ${o}`); if (n === 3) { await sleep(4200); await M.page.screenshot({ path: `${SHOTS}/exchange-mobile.png` }); } if (n === 8) { await sleep(4200); await M.page.screenshot({ path: "/workspace/shot-exchange-prfaq-mobile.png" }); } }
 notes.push("mobile overflow: " + JSON.stringify(mov));
 await M.click("Coach", ".mtabs button"); notes.push("mobile coach: " + (await M.text(".side")).slice(0, 40).replace(/\s+/g, " "));
 await M.click("Tour", ".mtabs button"); notes.push("mobile Tour tab in exchange mode: " + (await M.tourTitle())); await M.click("Skip tour", ".tour-card button");
