@@ -23,7 +23,21 @@ XP, levels, badges, a quick check in every step and a searchable dictionary keep
 
 A dark trading-terminal layout (light mode too): top bar with the deal, asset class, cash, P&L, XP and clock; a stage rail with progress and locks; the workspace; a collapsible coach and dictionary panel; and a bottom news tape with blotter, working orders and news wire. First visit shows a short plain-English tour; replay it anytime with the **Replay tour** button in the top bar (the ▶ Tour tab on phones), the `G` key, or the `?` help overlay, which can also jump to any tour step. On phones the panels become tabs.
 
-Keyboard: `?` help, `Esc` close, `[` `]` previous/next step, `1`–`8` jump, `T` theme, `C` coach panel, `D` dictionary, `G` replay the tour; on the trading floor `B` buy, `S` sell, `N` next month, `P` auto-advance; in the stress test `P` play/pause, `N` step.
+Keyboard: `?` help, `Esc` close, `[` `]` previous/next step, `1`–`8` jump, `T` theme, `C` coach panel, `D` dictionary, `G` replay the tour, `X` switch between Deal Lab and Exchange Builder (where `1`–`7` jump); on the trading floor `B` buy, `S` sell, `N` next month, `P` auto-advance; in the stress test `P` play/pause, `N` step.
+
+## Exchange Builder: design a new ABS exchange
+
+A second module, opened with the **Deal Lab / Exchange Builder** switch in the top bar (or the `X` key). It walks through what a new marketplace for asset-backed securities would need, in seven steps:
+
+1. **OTC vs. exchange**: an animated side-by-side trade path (phone a dealer vs. a visible order book), with costs by trade size and how TRACE-style trade reporting fits in.
+2. **Marketplace map**: every role (venue operator, market makers, broker-dealers, investors, issuer, clearing house, custodian, depository, data vendor, rating agency, trustee and servicer, regulators, technology) with what each one does, needs, gets paid and wants, plus an animated "who pays whom" money-flow view.
+3. **Market design**: set the market structure, fees, minimum size, transparency, reporting delay, market-maker rules, clearing, data disclosure, listing standards and access, and watch liquidity, spreads, price discovery, venue revenue, dealer profits, investor cost, systemic risk and regulator approval move.
+4. **Incentives**: who wins, who loses, where the trading money goes, and who will resist.
+5. **Cold start**: pick a first product and spend a limited budget on launch levers to reach critical mass.
+6. **Risks and safeguards**: stress the design with fire-sale, flash-crash, bad-data, manipulation, member-default and vanishing-liquidity scenarios.
+7. **Pitch scorecard**: grades for liquidity, fairness, safety, profitability and adoption, with feedback and badges (Market Architect, Cold Start Solver and others).
+
+It has its own coach, quizzes, dictionary entries and replayable tour (from the `?` overlay, `G`, or the Replay tour button while in Exchange Builder). The model is synthetic and simplified, for learning only, and every firm in it is fictional.
 
 ## Run locally
 
@@ -42,8 +56,10 @@ Pushing to `main` runs `.github/workflows/deploy.yml`, which builds with Vite an
 
 - `src/term/Terminal.tsx`: the trading-terminal app (state, market model, order handling, screens, shell).
 - `src/term/engine.tsx`: data, asset classes, players, ratings, quizzes and the cash-flow waterfall engine.
+- `src/term/exchange.tsx`: the Exchange Builder module (roles, money flows, market-design model, cold start, risk scenarios, scorecard).
 - `src/term/ui.tsx`, `src/term/charts.tsx`: UI pieces and SVG charts (price chart, capital stack, gauges, balance chart, flow diagram).
 - `src/term/styles.css`: theme tokens and layout (system fonts only; injected at runtime so the build stays one file).
 - `src/App.tsx` + `src/grok-canvas.tsx`: the original page version, kept as a reference mirror (type-checked, not rendered).
 - `inline.mjs`: post-build step that inlines the JS bundle into `index.html`.
 - `smoke.mjs`: optional headless Chrome smoke test covering all 7 asset types, trading, the stress test, themes, the tour, mobile and file:// (`node smoke.mjs`, needs a local Chrome and `puppeteer-core`).
+- `smoke-exchange.mjs`: the same kind of test for Exchange Builder on desktop and mobile (`node smoke-exchange.mjs`).

@@ -7,6 +7,7 @@ import {
 import type { AssetDef, Ev, Opt, RunRes, TrOut, MonthRow, Player, Quiz } from "./engine";
 import { Term, Panel, Metric, Slider, Seg, Switch, Rating, Tag, Props, Tbl, QuizBlock, Toasts, useTween } from "./ui";
 import type { Toast } from "./ui";
+import { useExchange, STAGES_X, SHORT_X } from "./exchange";
 import { PriceChart, Histogram, CapitalStack, Gauge, BalanceChart, FlowDiagram, Spark } from "./charts";
 import type { StackLayer } from "./charts";
 
@@ -111,6 +112,12 @@ export default function Terminal() {
     else if (!k.startsWith("q")) toast(`+${w[0]} XP`, AWARD_NAME[k] ?? "", "good");
   };
 
+  // ---------- module switch: Deal Lab vs Exchange Builder ----------
+  const X = useExchange({ award, toast });
+  const [mode, setModeRaw] = useState<"deal" | "exchange">(() => (ls.get("bondlab.mode") === "exchange" ? "exchange" : "deal"));
+  const isX = mode === "exchange";
+  const [tourSet, setTourSet] = useState<"deal" | "exchange">("deal");
+  useEffect(() => { document.title = isX ? "Exchange Builder \u00b7 Bond Lab" : "Bond Lab"; }, [isX]);
   const A = ASSETS.find((x) => x.id === aid) ?? A0;
   const xp = awards.reduce((s, k) => s + (AW[k] ? AW[k][0] : 0), 0);
   const badges = awards.filter((k) => AW[k] && AW[k][1]).map((k) => AW[k][1]);
@@ -409,8 +416,9 @@ export default function Terminal() {
   })();
 
   // ---------- tour ----------
-  const TOUR: { sel: string; title: string; body: string }[] = [
+  const TOUR_D: { sel: string; title: string; body: string }[] = [
     { sel: "", title: "Welcome to Bond Lab", body: "You'll build an asset-backed security (a bond paid by a basket of loans) from scratch, then sell it and trade it. Everything here is made up for practice. This 30-second tour shows you around." },
+    { sel: "mode", title: "Two modules", body: "Deal Lab (this one) builds and trades a deal. Exchange Builder lets you design a new marketplace for these bonds: who does what, who gets paid how. Switch here any time, or press X." },
     { sel: "topbar", title: "Top bar: your desk at a glance", body: "The deal you're building, the asset class, your mock cash, your P&L (profit or loss), your XP level and a live clock. Market month shows how much simulated time has passed." },
     { sel: "rail", title: "Steps of a real deal", body: "The 8 steps run from selecting the collateral pool (picking the basket of loans) to the stress test (storm test). A lock means an earlier step has to be finished first." },
     { sel: "workspace", title: "Your workspace", body: "Each step has its own tools: sliders, a draggable capital stack, a live order book, a trading screen. Dotted words are industry terms: hover or tap them for a plain-English explanation." },
@@ -418,8 +426,14 @@ export default function Terminal() {
     { sel: "tape", title: "News tape and blotter", body: "Market news scrolls along the tape. Underneath, the trade blotter (your trade log), working orders and news wire keep a record of everything." },
     { sel: "", title: "Shortcuts", body: "Press ? any time for keyboard shortcuts. On the trading screen, B buys, S sells and N moves to the next month. T switches light and dark mode. You can replay this tour anytime from the Tour button (or press G). Have fun!" },
   ];
-  const endTour = () => { setTour(-1); ls.set("bondlab.tour.v1", "1"); };
-  const startTour = (step = 0) => { setHelp(false); setMtab("work"); setSideOpen(true); setTour(clamp(step, 0, TOUR.length - 1)); };
+  const TOUR = tourSet === "exchange" ? X.TOUR : TOUR_D;
+  const endTour = () => { setTour(-1); ls.set(tourSet === "exchange" ? "bondlab.tour.x.v1" : "bondlab.tour.v1", "1"); };
+  const startTour = (step = 0, set: "deal" | "exchange" = mode) => { const T = set === "exchange" ? X.TOUR : TOUR_D; setHelp(false); setMtab("work"); setSideOpen(true); setTourSet(set); setTour(clamp(step, 0, T.length - 1)); };
+  const setMode = (m: "deal" | "exchange") => {
+    setModeRaw(m); ls.set("bondlab.mode", m); setMtab("work"); setHelp(false);
+    document.querySelector(".main")?.scrollTo({ top: 0 });
+    if (m === "exchange" && !ls.get("bondlab.tour.x.v1") && tour < 0) startTour(0, "exchange");
+  };
   const [hole, setHole] = useState<DOMRect | null>(null);
   useEffect(() => {
     if (tour < 0) return;
@@ -433,7 +447,7 @@ export default function Terminal() {
     upd();
     window.addEventListener("resize", upd);
     return () => window.removeEventListener("resize", upd);
-  }, [tour, sideOpen]);
+  }, [tour, sideOpen, tourSet, mode]);
 
   // ---------- keyboard shortcuts ----------
   const keyRef = useRef<(e: KeyboardEvent) => void>(() => undefined);
@@ -449,10 +463,17 @@ export default function Terminal() {
       return;
     }
     if (k === "g" || k === "G") { startTour(0); return; }
+    if (k === "x" || k === "X") { setMode(isX ? "deal" : "exchange"); return; }
     if (k === "?") { setHelp((h) => !h); e.preventDefault(); return; }
     if (k === "t" || k === "T") { setTheme((t) => (t === "dark" ? "light" : "dark")); return; }
     if (k === "c" || k === "C") { setSideOpen((o) => !o); return; }
     if (k === "d" || k === "D") { setSideOpen(true); setSideTab("dict"); return; }
+    if (isX) {
+      if (k === "]") { X.setStage(X.stage + 1); return; }
+      if (k === "[") { X.setStage(X.stage - 1); return; }
+      if (/^[1-7]$/.test(k)) { X.setStage(Number(k) - 1); return; }
+      return;
+    }
     if (k === "]") { setStage(stage + 1); return; }
     if (k === "[") { setStage(stage - 1); return; }
     if (/^[1-8]$/.test(k)) { setStage(Number(k) - 1); return; }
@@ -907,16 +928,16 @@ export default function Terminal() {
         {sideTab === "coach" ? (
           <>
             <div className="coach-card">
-              <div className="cl"><span className="avatar">{"\u2726"}</span>Coach {"\u00b7"} step {stage + 1}</div>
-              <div className="coach-msg" key={coach}>{coach}</div>
+              <div className="cl"><span className="avatar">{"\u2726"}</span>{isX ? "Exchange coach" : "Coach"} {"\u00b7"} step {(isX ? X.stage : stage) + 1}</div>
+              <div className="coach-msg" key={isX ? X.coach : coach}>{isX ? X.coach : coach}</div>
             </div>
             <div className="coach-card">
               <div className="cl">Key terms for this step</div>
-              {STAGE_TERMS[stage].filter((k) => G[k]).map((k) => <div key={k} className="dict-item"><div className="di-t">{G[k][0]}</div><div className="di-a">{G[k][1]}</div><div className="di-e">{G[k][2]}</div></div>)}
+              {(isX ? X.terms : STAGE_TERMS[stage]).filter((k) => G[k]).map((k) => <div key={k} className="dict-item"><div className="di-t">{G[k][0]}</div><div className="di-a">{G[k][1]}</div><div className="di-e">{G[k][2]}</div></div>)}
             </div>
             <div className="coach-card">
               <div className="cl">Quick check {"\u00b7"} +20 XP</div>
-              <QuizBlock q={QUIZ[stage]} ans={quiz[stage]} onAns={answer} />
+              {isX ? <QuizBlock q={X.quiz} ans={X.quizAns} onAns={X.answer} /> : <QuizBlock q={QUIZ[stage]} ans={quiz[stage]} onAns={answer} />}
             </div>
           </>
         ) : (
@@ -954,13 +975,18 @@ export default function Terminal() {
     <div className={"app" + (sideOpen ? "" : " side-closed") + (mtab === "coach" ? " m-coach" : mtab === "tape" ? " m-tape" : "")}>
       <header className="topbar" data-tour="topbar">
         <div className="brand"><span className="logo">BL</span><span>BOND LAB</span></div>
+        <div className="mode-switch" data-tour="mode" role="radiogroup" aria-label="Module">
+          <button role="radio" aria-checked={!isX} className={!isX ? "on" : ""} onClick={() => setMode("deal")} title="Deal Lab: build and trade a deal (X)">Deal Lab</button>
+          <button role="radio" aria-checked={isX} className={isX ? "on" : ""} onClick={() => setMode("exchange")} title="Exchange Builder: design a new ABS exchange (X)">Exchange Builder</button>
+        </div>
+        {isX ? X.top.map((c) => <div key={c.k} className={"tb-cell" + (c.hide ? " tb-hide-sm" : "")} style={{ maxWidth: 230 }}><span className="k">{c.k}</span><span className={"v " + (c.hide ? "" : "num ") + (c.tone ?? "")}>{c.v}</span></div>) : <>
         <div className="tb-cell tb-hide-sm" style={{ maxWidth: 230 }}><span className="k">Deal</span><span className="v">{A.trust}</span></div>
         <div className="tb-cell tb-hide-sm tb-hide-md"><span className="k">Asset class</span><span className="v">{proName(A)}</span></div>
         <div className="tb-cell"><span className="k">Cash</span><span className="v num">{fm(mk.cash)}</span></div>
-        <div className="tb-cell"><span className="k">P&amp;L</span><span className={"v num " + (pnl > 0.5 ? "up" : pnl < -0.5 ? "down" : "muted")}>{fmS(pnlT)}</span></div>
+        <div className="tb-cell"><span className="k">P&amp;L</span><span className={"v num " + (pnl > 0.5 ? "up" : pnl < -0.5 ? "down" : "muted")}>{fmS(pnlT)}</span></div></>}
         <div className="tb-cell tb-xp tb-hide-sm" title={`${xp} XP`}><span className="k">{LEVELS[li][1]} {"\u00b7"} {xp} XP</span><div className="bar"><i className="grow" style={{ width: `${Math.round(frac * 100)}%` }} /></div></div>
         <div className="tb-grow" />
-        <div className="tb-cell tb-hide-sm"><span className="k">Market</span><span className="v num"><span className="live-dot" />{mk.started ? `Month ${mk.m}` : closed ? "Closed" : "Pre-deal"}</span></div>
+        {!isX && <div className="tb-cell tb-hide-sm"><span className="k">Market</span><span className="v num"><span className="live-dot" />{mk.started ? `Month ${mk.m}` : closed ? "Closed" : "Pre-deal"}</span></div>}
         <div className="tb-cell tb-hide-sm"><span className="k">Time (local)</span><span className="v num">{now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span></div>
         <button className="icon-btn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} title="Theme (T)">{theme === "dark" ? "\u2600" : "\u263e"}</button>
         <button className="icon-btn" onClick={() => setHelp(true)} aria-label="Keyboard shortcuts" title="Shortcuts (?)">?</button>
@@ -968,8 +994,13 @@ export default function Terminal() {
       </header>
 
       <nav className="rail" data-tour="rail" aria-label="Deal steps">
-        <div className="rail-h"><span>Deal workflow</span><span>{Math.min(maxSeen + 1, 8)}/8</span></div>
-        {STAGES.map((s, i) => { const lk = lockReason(i); return (
+        <div className="rail-h"><span>{isX ? "Exchange design" : "Deal workflow"}</span><span>{isX ? `${X.maxSeen + 1}/7` : `${Math.min(maxSeen + 1, 8)}/8`}</span></div>
+        {isX && STAGES_X.map((s, i) => (
+          <button key={s} className={"stage-btn" + (i === X.stage ? " on" : "") + (i < X.maxSeen && i !== X.stage ? " done" : "")} onClick={() => X.setStage(i)} aria-current={i === X.stage ? "step" : undefined} title={s} aria-label={`Step ${i + 1}: ${s}`}>
+            <span className="n">{i < X.maxSeen && i !== X.stage ? "\u2713" : i + 1}</span>
+            <span><span className="t" style={{ display: "block" }}>{SHORT_X[i][0]}</span><span className="s" style={{ display: "block" }}>{SHORT_X[i][1]}</span></span>
+          </button>))}
+        {!isX && STAGES.map((s, i) => { const lk = lockReason(i); return (
           <button key={s} className={"stage-btn" + (i === stage ? " on" : "") + (stageDone(i) && i !== stage ? " done" : "")} onClick={() => setStage(i)} aria-current={i === stage ? "step" : undefined} title={lk ?? s} aria-label={`Step ${i + 1}: ${s}${lk ? " (locked)" : ""}`} style={lk ? { opacity: 0.55 } : undefined}>
             <span className="n">{lk ? "\ud83d\udd12" : stageDone(i) && i !== stage ? "\u2713" : i + 1}</span>
             <span><span className="t" style={{ display: "block" }}>{STAGE_SHORT[i][0]}</span><span className="s" style={{ display: "block" }}>{STAGE_SHORT[i][1]}</span></span>
@@ -981,10 +1012,27 @@ export default function Terminal() {
       </nav>
 
       <div className="stage-strip" aria-label="Deal steps">
-        {STAGES.map((s, i) => <button key={s} className={"chip" + (i === stage ? " on" : stageDone(i) ? " ok" : "")} onClick={() => setStage(i)} aria-label={`Step ${i + 1}: ${s}`}>{lockReason(i) ? "\ud83d\udd12 " : ""}{i + 1}. {STAGE_SHORT[i][0]}</button>)}
+        {isX && STAGES_X.map((s, i) => <button key={s} className={"chip" + (i === X.stage ? " on" : i < X.maxSeen ? " ok" : "")} onClick={() => X.setStage(i)} aria-label={`Step ${i + 1}: ${s}`}>{i + 1}. {SHORT_X[i][0]}</button>)}
+        {!isX && STAGES.map((s, i) => <button key={s} className={"chip" + (i === stage ? " on" : stageDone(i) ? " ok" : "")} onClick={() => setStage(i)} aria-label={`Step ${i + 1}: ${s}`}>{lockReason(i) ? "\ud83d\udd12 " : ""}{i + 1}. {STAGE_SHORT[i][0]}</button>)}
       </div>
 
       <main className="main" data-tour="workspace" id="workspace">
+        {isX ? <>
+        <div className="ws-head">
+          <div><div className="crumb">Exchange Builder {"\u00b7"} step {X.stage + 1} of 7 {"\u00b7"} synthetic model, fictional firms</div><h1>{STAGES_X[X.stage]}</h1></div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className="btn sm" disabled={X.stage === 0} onClick={() => X.setStage(X.stage - 1)} aria-label="Previous step">{"\u2190"} <span className="kbd">[</span></button>
+            <button className="btn sm" disabled={X.stage === 6} onClick={() => X.setStage(X.stage + 1)} aria-label="Next step"><span className="kbd">]</span> {"\u2192"}</button>
+          </div>
+        </div>
+        <div className="m-only callout" style={{ marginBottom: 12 }}><div className="cl">Coach</div>{X.coach}</div>
+        <div key={"x" + X.stage} style={{ animation: "fadeIn .25s ease" }}>{X.screen()}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+          <button className="btn" disabled={X.stage === 0} onClick={() => X.setStage(X.stage - 1)}>{"\u2190 Back"}</button>
+          {X.stage < 6 ? <button className="btn primary" onClick={() => X.setStage(X.stage + 1)}>{"Next: " + STAGES_X[X.stage + 1] + " \u2192"}</button> : <button className="btn primary" onClick={() => setMode("deal")}>Back to Deal Lab</button>}
+        </div>
+        <div className="m-only" style={{ marginTop: 16 }}><Panel title={`Quick check: step ${X.stage + 1}`}><QuizBlock q={X.quiz} ans={X.quizAns} onAns={X.answer} /></Panel></div>
+        </> : <>
         <div className="ws-head">
           <div><div className="crumb">Step {stage + 1} of 8 {"\u00b7"} {proName(A)}</div><h1>{STAGES[stage]}</h1></div>
           <div style={{ display: "flex", gap: 6 }}>
@@ -996,18 +1044,19 @@ export default function Terminal() {
         <div key={stage + aid} style={{ animation: "fadeIn .25s ease" }}>{screens[stage]()}</div>
         {moveOn}
         <div className="m-only" style={{ marginTop: 16 }}><Panel title={`Quick check: step ${stage + 1}`}><QuizBlock q={QUIZ[stage]} ans={quiz[stage]} onAns={answer} /></Panel></div>
+        </>}
       </main>
 
       {coachPanel}
 
       <footer className="tape" data-tour="tape">
         <div className="ticker" aria-label="News ticker">
-          <span className="lbl">{mk.started ? "LIVE" : "DESK"}</span>
-          <div className="track" style={{ ["--dur" as string]: `${Math.max(30, tape.length * 7)}s` }}>
-            {[...tape, ...tape].map((x, i) => <span key={i} className="it" aria-hidden={i >= tape.length}><b>{x.t}</b> <span className={x.tone ?? ""}>{x.d}</span></span>)}
+          <span className="lbl">{isX ? "DESIGN" : mk.started ? "LIVE" : "DESK"}</span>
+          <div className="track" key={mode} style={{ ["--dur" as string]: `${Math.max(30, (isX ? X.tape : tape).length * 7)}s` }}>
+            {(isX ? [...X.tape, ...X.tape] : [...tape, ...tape]).map((x, i) => <span key={i} className="it" aria-hidden={i >= (isX ? X.tape : tape).length}><b>{x.t}</b> <span className={x.tone ?? ""}>{x.d}</span></span>)}
           </div>
         </div>
-        <div className={"dock" + (dockOpen ? "" : " closed")}>
+        {!isX && <div className={"dock" + (dockOpen ? "" : " closed")}>
           <div className="dock-tabs" role="tablist">
             {([["blotter", `Trade blotter (${mk.trades.length})`], ["orders", `Working orders (${mk.orders.length})`], ["news", "News wire"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={dock === k} className={"tab" + (dock === k ? " on" : "")} onClick={() => { setDock(k); setDockOpen(true); }}>{l}</button>)}
             <div style={{ flex: 1 }} />
@@ -1015,11 +1064,11 @@ export default function Terminal() {
             <button className="icon-btn" style={{ height: 24 }} onClick={() => setDockOpen(!dockOpen)} aria-label={dockOpen ? "Collapse dock" : "Expand dock"}>{dockOpen ? "\u25be" : "\u25b4"}</button>
           </div>
           {dockOpen && <div className="dock-body">{dock === "blotter" ? blotter : dock === "orders" ? ordersTab : newsTab}</div>}
-        </div>
+        </div>}
       </footer>
 
       <nav className="mtabs" aria-label="Sections">
-        {([["work", "Workspace"], ["coach", "Coach"], ["tape", "Blotter & news"]] as const).map(([k, l]) => <button key={k} className={mtab === k ? "on" : ""} onClick={() => { setMtab(k); if (k === "coach") setSideOpen(true); }} aria-pressed={mtab === k}>{l}</button>)}
+        {([["work", "Workspace"], ["coach", "Coach"], ["tape", isX ? "Tape" : "Blotter & news"]] as const).map(([k, l]) => <button key={k} className={mtab === k ? "on" : ""} onClick={() => { setMtab(k); if (k === "coach") setSideOpen(true); }} aria-pressed={mtab === k}>{l}</button>)}
         <button onClick={() => startTour(0)} aria-label="Replay the guided tour" title="Replay the guided tour">{"\u25b6"} Tour</button>
       </nav>
 
@@ -1030,15 +1079,17 @@ export default function Terminal() {
           <div className="modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
             <div className="modal-h"><h3>Keyboard shortcuts</h3><button className="icon-btn" onClick={() => setHelp(false)} aria-label="Close">{"\u2715"}</button></div>
             <div className="modal-b keys">
-              {[["?", "Show or hide this help"], ["Esc", "Close dialogs"], ["[  ]", "Previous / next step"], ["1 \u2013 8", "Jump to a step"], ["T", "Light / dark mode"], ["G", "Replay the guided tour (also the Replay tour button in the top bar)"], ["\u2190 \u2192", "Back / next while the tour is open"], ["C", "Show / hide the coach panel"], ["D", "Open the dictionary"], ["B / S", "Buy / sell on the trading floor (step 7)"], ["N", "Next month (trading) or next waterfall month (stress test)"], ["P", "Auto-advance (trading) or play / pause (stress test)"]].map(([k, d]) => [<span key={k} className="kbd">{k}</span>, <span key={d}>{d}</span>])}
+              {[["?", "Show or hide this help"], ["Esc", "Close dialogs"], ["[  ]", "Previous / next step"], ["1 \u2013 8", "Jump to a step (1 \u2013 7 in Exchange Builder)"], ["T", "Light / dark mode"], ["X", "Switch module: Deal Lab / Exchange Builder"], ["G", "Replay the guided tour (also the Replay tour button in the top bar)"], ["\u2190 \u2192", "Back / next while the tour is open"], ["C", "Show / hide the coach panel"], ["D", "Open the dictionary"], ["B / S", "Buy / sell on the trading floor (step 7)"], ["N", "Next month (trading) or next waterfall month (stress test)"], ["P", "Auto-advance (trading) or play / pause (stress test)"]].map(([k, d]) => [<span key={k} className="kbd">{k}</span>, <span key={d}>{d}</span>])}
             </div>
             <div className="modal-b" style={{ borderTop: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                <b>Guided tour</b>
+                <b>Guided tours</b>
                 <button className="btn sm primary" onClick={() => startTour(0)}>{"\u25b6"} Replay tour from the start</button>
               </div>
-              <div className="dim" style={{ fontSize: 12, marginBottom: 6 }}>Or jump straight to a part of the tour:</div>
-              <div className="chips">{TOUR.map((t, i) => <button key={t.title} className="chip" onClick={() => startTour(i)} aria-label={`Tour step ${i + 1}: ${t.title}`}>{i + 1}. {t.title}</button>)}</div>
+              <div className="dim" style={{ fontSize: 12, marginBottom: 6 }}>Deal Lab tour: jump straight to a part</div>
+              <div className="chips">{TOUR_D.map((t, i) => <button key={t.title} className="chip" onClick={() => { if (isX) { setModeRaw("deal"); ls.set("bondlab.mode", "deal"); } startTour(i, "deal"); }} aria-label={`Tour step ${i + 1}: ${t.title}`}>{i + 1}. {t.title}</button>)}</div>
+              <div className="dim" style={{ fontSize: 12, margin: "12px 0 6px" }}>Exchange Builder tour</div>
+              <div className="chips">{X.TOUR.map((t, i) => <button key={t.title} className="chip" onClick={() => { if (!isX) { setModeRaw("exchange"); ls.set("bondlab.mode", "exchange"); } startTour(i, "exchange"); }} aria-label={`Exchange tour step ${i + 1}: ${t.title}`}>{i + 1}. {t.title}</button>)}</div>
             </div>
           </div>
         </div>
