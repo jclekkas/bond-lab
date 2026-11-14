@@ -416,9 +416,10 @@ export default function Terminal() {
     { sel: "workspace", title: "Your workspace", body: "Each step has its own tools: sliders, a draggable capital stack, a live order book, a trading screen. Dotted words are industry terms: hover or tap them for a plain-English explanation." },
     { sel: "coach", title: "Coach and dictionary", body: "The coach tells you what to do next, teaches the key terms for each step, and has a quick check quiz for XP. The dictionary tab lists every term. Hide this panel with C." },
     { sel: "tape", title: "News tape and blotter", body: "Market news scrolls along the tape. Underneath, the trade blotter (your trade log), working orders and news wire keep a record of everything." },
-    { sel: "", title: "Shortcuts", body: "Press ? any time for keyboard shortcuts. On the trading screen, B buys, S sells and N moves to the next month. T switches light and dark mode. Have fun!" },
+    { sel: "", title: "Shortcuts", body: "Press ? any time for keyboard shortcuts. On the trading screen, B buys, S sells and N moves to the next month. T switches light and dark mode. You can replay this tour anytime from the Tour button (or press G). Have fun!" },
   ];
   const endTour = () => { setTour(-1); ls.set("bondlab.tour.v1", "1"); };
+  const startTour = (step = 0) => { setHelp(false); setMtab("work"); setSideOpen(true); setTour(clamp(step, 0, TOUR.length - 1)); };
   const [hole, setHole] = useState<DOMRect | null>(null);
   useEffect(() => {
     if (tour < 0) return;
@@ -442,7 +443,12 @@ export default function Terminal() {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
     if (k === "Escape") { setHelp(false); if (tour >= 0) endTour(); return; }
-    if (tour >= 0) return;
+    if (tour >= 0) {
+      if (k === "ArrowRight") { if (tour === TOUR.length - 1) endTour(); else setTour(tour + 1); }
+      else if (k === "ArrowLeft" && tour > 0) setTour(tour - 1);
+      return;
+    }
+    if (k === "g" || k === "G") { startTour(0); return; }
     if (k === "?") { setHelp((h) => !h); e.preventDefault(); return; }
     if (k === "t" || k === "T") { setTheme((t) => (t === "dark" ? "light" : "dark")); return; }
     if (k === "c" || k === "C") { setSideOpen((o) => !o); return; }
@@ -958,7 +964,7 @@ export default function Terminal() {
         <div className="tb-cell tb-hide-sm"><span className="k">Time (local)</span><span className="v num">{now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span></div>
         <button className="icon-btn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} title="Theme (T)">{theme === "dark" ? "\u2600" : "\u263e"}</button>
         <button className="icon-btn" onClick={() => setHelp(true)} aria-label="Keyboard shortcuts" title="Shortcuts (?)">?</button>
-        <button className="icon-btn tb-hide-sm" onClick={() => setTour(0)} title="Replay the tour">Tour</button>
+        <button className="icon-btn tour-btn" data-testid="tour-btn" onClick={() => startTour(0)} title="Replay the guided tour (G)" aria-label="Replay the guided tour (shortcut G)">{"\u25b6"} <span className="tour-lbl">Replay tour</span></button>
       </header>
 
       <nav className="rail" data-tour="rail" aria-label="Deal steps">
@@ -1014,6 +1020,7 @@ export default function Terminal() {
 
       <nav className="mtabs" aria-label="Sections">
         {([["work", "Workspace"], ["coach", "Coach"], ["tape", "Blotter & news"]] as const).map(([k, l]) => <button key={k} className={mtab === k ? "on" : ""} onClick={() => { setMtab(k); if (k === "coach") setSideOpen(true); }} aria-pressed={mtab === k}>{l}</button>)}
+        <button onClick={() => startTour(0)} aria-label="Replay the guided tour" title="Replay the guided tour">{"\u25b6"} Tour</button>
       </nav>
 
       <Toasts items={toasts} />
@@ -1023,7 +1030,15 @@ export default function Terminal() {
           <div className="modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
             <div className="modal-h"><h3>Keyboard shortcuts</h3><button className="icon-btn" onClick={() => setHelp(false)} aria-label="Close">{"\u2715"}</button></div>
             <div className="modal-b keys">
-              {[["?", "Show or hide this help"], ["Esc", "Close dialogs"], ["[  ]", "Previous / next step"], ["1 \u2013 8", "Jump to a step"], ["T", "Light / dark mode"], ["C", "Show / hide the coach panel"], ["D", "Open the dictionary"], ["B / S", "Buy / sell on the trading floor (step 7)"], ["N", "Next month (trading) or next waterfall month (stress test)"], ["P", "Auto-advance (trading) or play / pause (stress test)"]].map(([k, d]) => [<span key={k} className="kbd">{k}</span>, <span key={d}>{d}</span>])}
+              {[["?", "Show or hide this help"], ["Esc", "Close dialogs"], ["[  ]", "Previous / next step"], ["1 \u2013 8", "Jump to a step"], ["T", "Light / dark mode"], ["G", "Replay the guided tour (also the Replay tour button in the top bar)"], ["\u2190 \u2192", "Back / next while the tour is open"], ["C", "Show / hide the coach panel"], ["D", "Open the dictionary"], ["B / S", "Buy / sell on the trading floor (step 7)"], ["N", "Next month (trading) or next waterfall month (stress test)"], ["P", "Auto-advance (trading) or play / pause (stress test)"]].map(([k, d]) => [<span key={k} className="kbd">{k}</span>, <span key={d}>{d}</span>])}
+            </div>
+            <div className="modal-b" style={{ borderTop: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                <b>Guided tour</b>
+                <button className="btn sm primary" onClick={() => startTour(0)}>{"\u25b6"} Replay tour from the start</button>
+              </div>
+              <div className="dim" style={{ fontSize: 12, marginBottom: 6 }}>Or jump straight to a part of the tour:</div>
+              <div className="chips">{TOUR.map((t, i) => <button key={t.title} className="chip" onClick={() => startTour(i)} aria-label={`Tour step ${i + 1}: ${t.title}`}>{i + 1}. {t.title}</button>)}</div>
             </div>
           </div>
         </div>

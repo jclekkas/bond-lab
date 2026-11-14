@@ -352,3 +352,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 18px; back
   .toasts .toast:not(:last-child) { display: none; }
 }
 .stack-break { top: 6px; left: 10px; right: auto; height: auto; border: 0; font-size: 10px; font-weight: 600; color: #fff; background: rgba(0,0,0,.28); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+/* replay tour */
+.tour-btn { white-space: nowrap; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); font-weight: 650; gap: 5px; }
+.tour-btn:hover { color: var(--accent); background: var(--accent-bg); }
+@media (max-width: 860px) {
+  .mtabs { grid-template-columns: repeat(4, 1fr); }
+  .tour-lbl { display: none; }
+}

@@ -12,7 +12,7 @@ async function open(url, tag, vp, { tour = false, theme } = {}) {
   page.on("console", (m) => { if (["error", "warning"].includes(m.type())) errors.push(`${tag} ${m.type()}: ${m.text()}`); });
   page.on("pageerror", (e) => errors.push(`${tag} pageerror: ${e.message}`));
   page.on("request", (r) => { const u = r.url(); if (!/^(http:\/\/localhost:4173|file:|data:)/.test(u)) external.push(u); });
-  await page.evaluateOnNewDocument((tour, theme) => { if (!tour) localStorage.setItem("bondlab.tour.v1", "1"); else localStorage.removeItem("bondlab.tour.v1"); if (theme) localStorage.setItem("bondlab.theme", theme); }, tour, theme);
+  await page.evaluateOnNewDocument((tour, theme) => { if (!tour) localStorage.setItem("bondlab.tour.v1", "1"); else if (!sessionStorage.getItem("smk")) { localStorage.removeItem("bondlab.tour.v1"); sessionStorage.setItem("smk", "1"); } if (theme) localStorage.setItem("bondlab.theme", theme); }, tour, theme);
   await page.goto(url, { waitUntil: "load" });
   await sleep(150);
   const click = async (txt, sel = "button", quiet = false) => {
@@ -101,6 +101,35 @@ const t = await open("http://localhost:4173/", "tour", D, { tour: true });
 notes.push("tour shown: " + !!(await t.page.$(".tour-card")));
 await t.click("Next", ".tour-card button"); await t.click("Next", ".tour-card button"); await sleep(400); await t.page.screenshot({ path: "/workspace/shot-tour.png" });
 await t.click("Skip tour"); notes.push("tour dismissed: " + !(await t.page.$(".tour-card")));
+await t.page.screenshot({ path: "/workspace/shot-topbar.png", clip: { x: 900, y: 0, width: 540, height: 60 } });
+const tourTitle = (pg) => pg.evaluate(() => document.querySelector(".tour-card h4")?.textContent || null);
+// replay after dismissal (desktop)
+await t.page.reload({ waitUntil: "load" }); await sleep(200);
+notes.push("desktop no tour after reload: " + !(await t.page.$(".tour-card")));
+await t.page.click(".tour-btn"); await sleep(150);
+notes.push("desktop replay via button: " + (await tourTitle(t.page)));
+notes.push("button tooltip: " + (await t.page.$eval(".tour-btn", (b) => b.title)) + " | visible label: " + (await t.page.$eval(".tour-btn", (b) => b.innerText)));
+await t.key("ArrowRight"); notes.push("arrow next: " + (await tourTitle(t.page)));
+await t.click("Skip tour", ".tour-card button");
+await t.key("g"); notes.push("replay via G: " + (await tourTitle(t.page)));
+const last = await t.page.evaluate(async () => { for (let i = 0; i < 10; i++) { const n = [...document.querySelectorAll(".tour-card button")].find((b) => b.textContent === "Next"); if (!n) break; n.click(); await new Promise((r) => setTimeout(r, 50)); } return document.querySelector(".tour-card p")?.textContent; });
+notes.push("last step mentions replay: " + /replay this tour anytime/.test(last || ""));
+await t.click("Start building", ".tour-card button"); notes.push("closed after last: " + !(await t.page.$(".tour-card")));
+await t.key("?"); await t.click("Tour step 4", ".modal button"); notes.push("help jump to step 4: " + (await tourTitle(t.page)) + " | modal closed: " + !(await t.page.$(".modal")));
+await t.key("Escape"); notes.push("esc closes: " + !(await t.page.$(".tour-card")));
+await t.key("?"); await t.click("Replay tour from the start", ".modal button"); notes.push("help replay: " + (await tourTitle(t.page))); await t.key("Escape");
+// mobile replay
+const mt = await open("http://localhost:4173/", "mobile-tour", { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, { tour: true });
+notes.push("mobile first-visit tour: " + (await tourTitle(mt.page)));
+await mt.click("Skip tour", ".tour-card button"); await mt.page.reload({ waitUntil: "load" }); await sleep(200);
+notes.push("mobile no tour after reload: " + !(await mt.page.$(".tour-card")));
+await mt.click("Coach", ".mtabs button"); await mt.click("Replay the guided tour", ".mtabs button"); await sleep(150);
+notes.push("mobile replay via tab: " + (await tourTitle(mt.page)) + " | back on workspace: " + (await mt.page.evaluate(() => !document.querySelector(".app").classList.contains("m-coach"))));
+await mt.page.screenshot({ path: "/workspace/bond-lab-shots/mobile-tour-replay.png" });
+await mt.click("Skip tour", ".tour-card button");
+await mt.page.click(".tour-btn"); await sleep(150); notes.push("mobile replay via top bar: " + (await tourTitle(mt.page)));
+await mt.click("Skip tour", ".tour-card button");
+notes.push("mobile overflow w/ 4 tabs: " + JSON.stringify(await mt.overflow()));
 // mobile
 const M = { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
 const m = await open("http://localhost:4173/", "mobile", M);
