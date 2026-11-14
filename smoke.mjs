@@ -22,9 +22,9 @@ async function open(url, tag, opts = {}) {
   const stage = (n) => click(`${n}. `);
   return { page, click, tables, stage };
 }
-const ASSETS = ["Car loans", "Home mortgages", "Credit cards", "Student loans", "Equipment leases", "Song royalties", "Business loans"];
+const ASSETS = ["Auto ABS (car loans)", "MBS (home mortgages)", "Credit card ABS (credit cards)", "Student loan ABS (student loans)", "Equipment ABS (equipment leases)", "Royalty ABS (song royalties)", "CLO (business loans)"];
 const { page, click, tables, stage } = await open("http://localhost:4173/", "desktop");
-await stage(2); await page.evaluate(() => [...document.querySelectorAll("section")].find((x) => x.textContent.startsWith("Who's who"))?.scrollIntoView());
+await stage(2); await page.evaluate(() => [...document.querySelectorAll("section")].find((x) => x.textContent.startsWith("Market participants"))?.scrollIntoView());
 await sleep(100); await page.screenshot({ path: "/workspace/shot-diagram.png" });
 // investor table + trade log role checks need stage 6/7 content, handled per asset below
 const report = [];
@@ -33,20 +33,20 @@ for (const name of ASSETS) {
   const r = [`== ${name}`];
   r.push("  real-life: " + (await page.evaluate(() => [...document.querySelectorAll("h2")].map((h) => h.textContent).filter((x) => /in real life|Good to know/.test(x)).join(" | "))));
   await stage(2); await click("Investors"); await click("(the special purpose vehicle)");
-  r.push("  SPV card: " + (await page.evaluate(() => [...document.querySelectorAll("section")].find((x) => x.querySelector("h2")?.textContent.startsWith("The walled-off box"))?.innerText.replace(/\s+/g, " ").slice(0, 230))));
+  r.push("  SPV card: " + (await page.evaluate(() => [...document.querySelectorAll("section")].find((x) => x.querySelector("h2")?.textContent.startsWith("Special purpose vehicle, SPV"))?.innerText.replace(/\s+/g, " ").slice(0, 230))));
   await click("So the lender's creditors can't grab them");
   r.push("  SPV quiz feedback: " + (await page.evaluate(() => document.body.innerText.includes("Correct, +20 XP. After a true sale"))));
   r.push("  players: " + (await page.evaluate(() => [...document.querySelectorAll("button")].filter(b=>b.textContent.includes("Collect")||b.textContent.includes("Servic")||b.textContent.includes("Capital")).map(b=>b.textContent).slice(0,3).join(", "))));
   await stage(3);
-  r.push("  basket: " + (await page.evaluate(() => [...document.querySelectorAll("section")].find((s) => s.textContent.includes("Your basket (mock data)"))?.innerText.replace(/\s+/g, " ").slice(0, 260))));
-  await stage(5); await click("Ask for grades", "button", true); await click("Re-check grades", "button", true);
+  r.push("  basket: " + (await page.evaluate(() => [...document.querySelectorAll("section")].find((s) => s.textContent.includes("Collateral pool (your basket"))?.innerText.replace(/\s+/g, " ").slice(0, 260))));
+  await stage(5); await click("Request credit ratings", "button", true); await click("Re-check ratings", "button", true);
   r.push("  grades: " + (await tables())[0]);
   await stage(6);
   r.push("  book: " + (await tables())[0]);
   r.push("  investor rows: " + (await tables())[1]?.slice(0, 160));
-  const closed = await click("Close the deal", "button", true);
+  const closed = await click("Price and close the deal", "button", true);
   r.push("  closed at defaults: " + closed);
-  await stage(7); await click("Open the trading floor"); await click("Buy $1M");
+  await stage(7); await click("Open secondary trading"); await click("Buy $1M");
   r.push("  trade log: " + (await tables()).pop()?.slice(0, 120));
   const titles = new Set();
   for (let k = 0; k < 30; k++) { await click("Next month"); const t = await page.evaluate(() => [...document.querySelectorAll("section")].find((s) => s.textContent.startsWith("News wire"))?.querySelector("div div div span")?.textContent); if (t) titles.add(t); }
@@ -55,25 +55,25 @@ for (const name of ASSETS) {
   r.push("  roles shown: " + ["(an investor)", "(the market maker)", "(the servicer)"].map((x) => x + "=" + body.includes(x)).join(" "));
   r.push("  quotes: " + (await tables())[0].slice(0, 200));
   await stage(8);
-  const segs = await page.evaluate(() => { const s = [...document.querySelectorAll("section")].find((x) => x.textContent.startsWith("Pick a storm")); return [...s.querySelectorAll("button")].map((b) => b.textContent).filter((x) => x !== "Custom"); });
-  for (const sname of segs) { await click(sname); const t = (await tables())[0]; r.push(`  storm "${sname}": ` + t.replace(/Floor Size Interest received Paid back Lost Avg wait Result /, "").replace(/\$[\d.]+[MKB]? \$[\d.]+[MKB]? /g, "").slice(0, 220)); }
-  r.push("  storm note: " + (await page.evaluate(() => [...document.querySelectorAll("p")].find((p) => p.textContent.startsWith("Basket losses"))?.textContent)));
+  const segs = await page.evaluate(() => { const s = [...document.querySelectorAll("section")].find((x) => x.textContent.startsWith("Stress test (pick a storm)")); return [...s.querySelectorAll("button")].map((b) => b.textContent).filter((x) => x !== "Custom"); });
+  for (const sname of segs) { await click(sname); const t = (await tables())[0]; r.push(`  storm "${sname}": ` + t.replace(/Tranche \(floor\) Size Interest received Principal repaid \(paid back\) Principal lost WAL \(avg wait\) Result /, "").replace(/\$[\d.]+[MKB]? \$[\d.]+[MKB]? /g, "").slice(0, 220)); }
+  r.push("  storm note: " + (await page.evaluate(() => [...document.querySelectorAll("p")].find((p) => p.textContent.startsWith("Collateral losses"))?.textContent)));
   report.push(r.join("\n"));
 }
 // mortgage guarantee toggle
-await stage(1); await click("Home mortgages"); await page.evaluate(() => document.querySelector('[role=switch]').click()); await sleep(50);
-await stage(5); await click("Ask for grades", "button", true); await click("Re-check grades", "button", true);
+await stage(1); await click("MBS (home mortgages)"); await page.evaluate(() => document.querySelector('[role=switch]').click()); await sleep(50);
+await stage(5); await click("Request credit ratings", "button", true); await click("Re-check ratings", "button", true);
 report.push("== Mortgage agency toggle ON grades: " + (await tables())[0]);
-await click("Plain-English dictionary", "h2");
+await click("Dictionary: industry terms", "h2");
 report.push("dictionary rows: " + (await page.evaluate(() => [...document.querySelectorAll("table")].pop().rows.length)));
 report.push("desk: " + (await page.evaluate(() => document.querySelector("section").innerText.replace(/\s+/g, " ").slice(0, 320))));
 await page.screenshot({ path: "/workspace/shot-desk.png" });
 // file:// dark + mobile quick passes over two assets
 for (const [url, tag, o] of [["file://" + process.cwd() + "/dist/index.html", "file-dark", { dark: true }], ["http://localhost:4173/", "mobile", { mobile: true }]]) {
   const p = await open(url, tag, o);
-  for (const name of ["Home mortgages", "Credit cards"]) {
+  for (const name of ["MBS (home mortgages)", "Credit card ABS (credit cards)"]) {
     await p.stage(1); await p.click(name);
-    for (let s = 2; s <= 8; s++) { await p.stage(s); if (s === 7) { await p.click("Open the trading floor"); for (let k = 0; k < 4; k++) await p.click("Next month"); } }
+    for (let s = 2; s <= 8; s++) { await p.stage(s); if (s === 7) { await p.click("Open secondary trading"); for (let k = 0; k < 4; k++) await p.click("Next month"); } }
   }
   const ow = await p.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   report.push(`${tag}: walked mortgages + cards through all 8 stages; horizontal overflow ${ow}px`);
