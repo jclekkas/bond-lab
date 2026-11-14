@@ -60,7 +60,9 @@ const G: Record<string, [string, string, string]> = {
   dv01: ["Rate sensitivity", "DV01 / duration", "How much a bond's price moves when rates move. The longer the wait for your money, the bigger the price swing."],
   residual: ["Owner's slice", "equity / residual", "Whatever is left after every floor is paid. The riskiest piece, usually kept by the lender. Big upside if borrowers keep paying."],
   fico: ["Credit score", "FICO score", "A 300 to 850 number that predicts how likely someone is to repay. 720+ is strong; under 620 is called subprime."],
-  spv: ["Lockbox company", "special purpose vehicle (SPV) / trust", "A separate legal box that owns the loans. If the lender goes bust, what is in the box is protected from its creditors."],
+  spv: ["Walled-off box", "special purpose vehicle (SPV)", "A separate mini-company set up for one job: owning the basket and issuing the bonds. It has no employees. Because it is walled off, if the lender goes bust, the lender's creditors can't grab the loans, and investors keep getting paid from borrowers' payments."],
+  truesale: ["A real sale", "true sale", "The lender truly sells the loans to the special purpose vehicle and gets cash for them. Once sold, they no longer belong to the lender, so the lender's creditors can't claim them."],
+  bkremote: ["Walled off from bankruptcy", "bankruptcy-remote", "Set up so that if the lender (or anyone else) goes bust, the special purpose vehicle and its basket are not dragged in. The bonds depend only on the borrowers' payments."],
   mark: ["What it's worth today", "mark-to-market", "Valuing what you hold at today's price, not the price you paid."],
   short: ["Betting it drops", "short selling", "Selling a bond you don't own (borrowed from the dealer), hoping to buy it back cheaper later."],
   book: ["Taking orders", "book-building", "Before the sale, the dealer calls investors and writes down how much each wants and for how much extra pay."],
@@ -81,11 +83,11 @@ const G: Record<string, [string, string, string]> = {
 };
 
 // ---------- asset types ----------
-type Ev = { title: string; detail: string; w: number; bench?: number; unemp?: number; cpr?: number; sev?: number; sp?: number[] };
+type Ev = { title: string; detail: string; w: number; bk?: boolean; bench?: number; unemp?: number; cpr?: number; sev?: number; sp?: number[] };
 type R4 = [number, number, number, number];
 type AssetDef = {
   id: string; name: string; pro: string; tk: string; thing: string; who: string;
-  orig: string; short: string; serv: string; trust: string; recover: string;
+  orig: string; oRole?: string; short: string; serv: string; trust: string; recover: string;
   n: R4; size: number; score: R4; scoreLabel: string; scoreTerm?: boolean; rate: R4; rateLabel: string; term: R4;
   elBase: number; elSlope: number; annual?: boolean; sev: number; cpr: number; lifeK: number; fee: number;
   rev?: boolean; defer?: [number, number]; refi: number; uSens: number; liq: number; guar?: string;
@@ -127,7 +129,7 @@ const ASSETS: AssetDef[] = [
     ],
   },
   {
-    id: "cards", name: "Credit cards", pro: "credit card ABS", tk: "revolving", thing: "card balances", who: "cardholders", orig: "Bluewave Card Services", short: "Bluewave", serv: "Bluewave Card Services", trust: "Bluewave Card Master Trust", recover: "collection agencies",
+    id: "cards", name: "Credit cards", pro: "credit card ABS", tk: "revolving", thing: "card balances", who: "cardholders", orig: "Bluewave Card Services", oRole: "the card company", short: "Bluewave", serv: "Bluewave Card Services", trust: "Bluewave Card Master Trust", recover: "collection agencies",
     n: [20000, 300000, 10000, 150000], size: 3200, score: [600, 800, 5, 700], scoreLabel: "Average credit score", scoreTerm: true, rate: [14, 29, 0.5, 22], rateLabel: "Card interest rate cardholders pay", term: [36, 84, 12, 60],
     elBase: 1.5, elSlope: 0.06, annual: true, sev: 0.9, cpr: 0.18, lifeK: 1, fee: 0.02, rev: true, refi: 0, uSens: 0.45, liq: 0.6,
     st: [78, 7, 7, 1], sp: [60, 100, 130], xs: [0.5, 8], thr: [5, 4, 3, 2, 1.3], fairK: 0.8, inv: [1, 1, 1.3, 1],
@@ -162,7 +164,7 @@ const ASSETS: AssetDef[] = [
     ],
   },
   {
-    id: "equipment", name: "Equipment leases", pro: "equipment ABS", tk: "lease", thing: "equipment leases", who: "businesses", orig: "Ironclad Equipment Finance", short: "Ironclad", serv: "Ironclad Lease Servicing", trust: "Ironclad Equipment Trust 2026-1", recover: "selling repossessed machines",
+    id: "equipment", name: "Equipment leases", pro: "equipment ABS", tk: "lease", thing: "equipment leases", who: "businesses", orig: "Ironclad Equipment Finance", oRole: "the leasing company", short: "Ironclad", serv: "Ironclad Lease Servicing", trust: "Ironclad Equipment Trust 2026-1", recover: "selling repossessed machines",
     n: [500, 10000, 250, 4000], size: 85000, score: [600, 800, 5, 710], scoreLabel: "Average business credit score", rate: [5, 14, 0.25, 8.5], rateLabel: "Lease rate businesses pay", term: [24, 60, 12, 48],
     elBase: 0.8, elSlope: 0.07, sev: 0.45, cpr: 0.08, lifeK: 0.45, fee: 0.01, refi: 0.03, uSens: 0.3, liq: 1.3,
     st: [80, 8, 5, 1], sp: [70, 120, 210], xs: [1.5, 8], thr: [5, 4, 3, 2, 1.3], fairK: 1, inv: [1, 1, 1, 1.1],
@@ -176,7 +178,7 @@ const ASSETS: AssetDef[] = [
     notes: [["How money comes in", "Each lease pays a fixed amount every month for 2 to 5 years. If a business stops paying, the machine is taken back and sold."]],
   },
   {
-    id: "music", name: "Song royalties", pro: "royalty bonds (Bowie bonds)", tk: "royalty", thing: "song royalty streams", who: "listeners and platforms", orig: "Starlight Music Catalog Co.", short: "Starlight", serv: "Starlight Royalty Collections", trust: "Starlight Royalty Trust 2026-1", recover: "licensing old songs",
+    id: "music", name: "Song royalties", pro: "royalty bonds (Bowie bonds)", tk: "royalty", thing: "song royalty streams", who: "listeners and platforms", orig: "Starlight Music Catalog Co.", oRole: "the catalog owner", short: "Starlight", serv: "Starlight Royalty Collections", trust: "Starlight Royalty Trust 2026-1", recover: "licensing old songs",
     n: [50, 1000, 25, 250], size: 220000, score: [600, 800, 5, 720], scoreLabel: "Catalog strength (higher = steadier hits)", rate: [6, 14, 0.25, 9.5], rateLabel: "Yearly royalties as % of value", term: [60, 180, 12, 120],
     elBase: 2.0, elSlope: 0.1, sev: 0.6, cpr: 0.02, lifeK: 0.45, fee: 0.02, refi: 0, uSens: 0.05, liq: 3,
     st: [70, 12, 8, 2], sp: [200, 220, 360], xs: [1.5, 6], thr: [6, 5, 3.5, 2.5, 1.5], fairK: 1.4, inv: [0.9, 0.8, 0.6, 1.3],
@@ -193,7 +195,7 @@ const ASSETS: AssetDef[] = [
     ],
   },
   {
-    id: "clo", name: "Business loans", pro: "CLO", tk: "clo", thing: "business loans", who: "mid-size companies", orig: "Northgate Capital (loan manager)", short: "Northgate", serv: "Northgate Capital", trust: "Northgate CLO 2026-1", recover: "restructuring bankrupt companies",
+    id: "clo", name: "Business loans", pro: "CLO", tk: "clo", thing: "business loans", who: "mid-size companies", orig: "Northgate Capital", oRole: "the loan manager", short: "Northgate", serv: "Northgate Capital", trust: "Northgate CLO 2026-1", recover: "restructuring bankrupt companies",
     n: [100, 400, 10, 200], size: 2500000, score: [600, 780, 5, 670], scoreLabel: "Average company credit strength", rate: [6, 13, 0.25, 9.5], rateLabel: "Loan interest rate companies pay", term: [48, 96, 12, 84],
     elBase: 1.5, elSlope: 0.07, sev: 0.35, cpr: 0.2, lifeK: 0.5, fee: 0.005, refi: 0.05, uSens: 0.35, liq: 1.5,
     st: [62, 14, 8, 0], sp: [120, 220, 420], xs: [1.5, 6], thr: [5.5, 4.5, 3.5, 2.5, 1.5], fairK: 1.5, inv: [1, 1.3, 1.2, 1.2],
@@ -212,17 +214,36 @@ const ASSETS: AssetDef[] = [
 ];
 
 // ---------- players ----------
-type Player = { id: string; name: string; pro: string; does: string; like: string; paid: string; here: string };
+// name + plain-English role, used everywhere a fictional company is mentioned
+const nr = (name: string, role: string): string => `${name} (${role})`;
+const lr = (A: AssetDef): string => A.oRole ?? "the lender";
+const SPV_ROLE = "the special purpose vehicle";
+const TRUSTEE = nr("Granite Trust Co.", "the trustee");
+const DEALER = nr("Bluebridge Securities", "the underwriter/dealer");
+const RATERS = "Polaris Ratings and Meridian Credit (the rating agencies)";
+const MM = nr("Kestrel Markets", "the market maker");
+type Player = { id: string; name: string; role: string; title?: string; pro: string; does: string; like: string; paid: string; here: string; extra?: { label: string; value: ReactNode }[] };
 const playersFor = (A: AssetDef): Player[] => [
-  { id: "borrowers", name: A.who.charAt(0).toUpperCase() + A.who.slice(1), pro: "Borrowers (obligors)", does: `The ${A.who} whose payments on ${A.thing} feed the whole deal.`, like: "The spring that feeds the river: every dollar starts with them.", paid: "They pay; they don't get paid.", here: `The ${A.thing} in your basket.` },
-  { id: "lender", name: A.orig, pro: "Originator / sponsor", does: `Made the ${A.thing}. Sells the bundle so it gets cash now to do more business.`, like: "A baker who sells a whole tray to a cafe instead of slice by slice.", paid: "Cash from the sale, plus the owner's slice (leftover money).", here: "You play its deal team in steps 3 to 6." },
-  { id: "trust", name: A.trust, pro: "Issuer / SPV trust", does: `A lockbox company that legally owns the ${A.thing} and issues the floors to investors.`, like: `A safe deposit box: even if ${A.short} goes bust, what's inside stays protected.`, paid: "Nothing; it's just a container.", here: "Holds your basket from step 3 onward." },
-  { id: "servicer", name: A.serv, pro: "Servicer", does: `Collects payments from ${A.who}, chases late payers, and recovers money by ${A.recover}.`, like: "A landlord's property manager collecting rent.", paid: `A fee of ${pc(A.fee * 100, 2)} a year of the basket.`, here: "Reports what it collected each month in steps 7 and 8." },
-  { id: "trustee", name: "Granite Trust Co.", pro: "Trustee", does: "The referee. Pays each floor in the right order and checks the rules are followed.", like: "A referee holding the rulebook.", paid: "A small fixed fee.", here: "Runs the payment order in the storm test." },
-  { id: "arranger", name: "Bluebridge Securities", pro: "Underwriter / arranger (dealer)", does: "Designs the floors with the seller, calls investors, takes orders and sells the deal.", like: "A wedding planner coordinating every vendor.", paid: "A fee of about 0.3% of the deal.", here: "Runs your order book in step 6." },
-  { id: "ratings", name: "Polaris Ratings & Meridian Credit", pro: "Rating agencies", does: "Stress-test each floor and give it a grade from AAA down.", like: "A crash-test lab handing out safety stars.", paid: "A fee from the deal for grading it.", here: "Grade your floors in step 5." },
-  { id: "investors", name: "Investors", pro: "Buy-side: money managers, insurers, banks, hedge funds", does: "Buy the floors that match how much risk they can stomach.", like: "Diners choosing a mild set menu or the spicy special.", paid: "Interest plus their money back.", here: "Four mock investors bid on your deal in step 6." },
-  { id: "mm", name: "Kestrel Markets desk", pro: "Market maker (dealer desk)", does: "After the sale, always ready to buy or sell floors so investors can trade.", like: "A used-car dealer: always open, buys a bit lower than it sells.", paid: "The gap between its buy and sell price.", here: "Quotes you prices on the trading floor in step 7." },
+  { id: "borrowers", name: A.who.charAt(0).toUpperCase() + A.who.slice(1), role: "the borrowers", pro: "Borrowers (obligors)", does: `The ${A.who} whose payments on ${A.thing} feed the whole deal.`, like: "The spring that feeds the river: every dollar starts with them.", paid: "They pay; they don't get paid.", here: `The ${A.thing} in your basket.` },
+  { id: "lender", name: A.orig, role: lr(A), pro: "Originator / sponsor", does: `Made the ${A.thing}. Sells them to the special purpose vehicle (${A.trust}) so it gets cash now to do more business.`, like: "A baker who sells a whole tray to a cafe instead of slice by slice.", paid: "Cash from the sale, plus the owner's slice (leftover money).", here: "You play its deal team in steps 3 to 6." },
+  {
+    id: "trust", name: A.trust, role: SPV_ROLE, title: "The walled-off box: Special purpose vehicle (SPV)", pro: "Special purpose vehicle (SPV), also called the issuer or the trust",
+    does: `A separate mini-company set up for one job: holding the basket of ${A.thing}. ${nr(A.orig, lr(A))} sells the ${A.thing} to it, and it issues the bonds (floors) that investors buy. Money from ${A.who} flows through it to investors.`,
+    like: `A locked piggy bank handed to a trusted neighbor: even if you get into money trouble, the people you owe can't take it. Even if ${A.short} goes bust, its creditors can't grab the ${A.thing}, and investors keep getting paid from ${A.who}' payments.`,
+    paid: "Nothing. It has no employees and no profits of its own; it just holds the basket and passes the money through.",
+    here: `Holds your basket from step 3 onward. In this deal it is called ${A.trust}.`,
+    extra: [
+      { label: "How it gets the loans", value: <span>A <Term k="truesale">true sale</Term>: {nr(A.short, lr(A))} really sells the {A.thing} and gets cash, so they stop being {A.short}'s property.</span> },
+      { label: "Why it exists", value: <span>It is <Term k="bkremote">bankruptcy-remote</Term>: walled off from the lender's money troubles, so the bonds depend only on the basket.</span> },
+      { label: "Who runs it", value: `Nobody works there. ${nr(A.serv, "the servicer")} collects the money and ${TRUSTEE} makes sure it is paid out by the rules.` },
+    ],
+  },
+  { id: "servicer", name: A.serv, role: "the servicer", pro: "Servicer", does: `Collects payments from ${A.who}, chases late payers, and recovers money by ${A.recover}.`, like: "A landlord's property manager collecting rent.", paid: `A fee of ${pc(A.fee * 100, 2)} a year of the basket.`, here: "Reports what it collected each month in steps 7 and 8." },
+  { id: "trustee", name: "Granite Trust Co.", role: "the trustee", pro: "Trustee", does: "The referee. Makes sure the special purpose vehicle pays each floor in the right order and follows the rules.", like: "A referee holding the rulebook.", paid: "A small fixed fee.", here: "Runs the payment order in the storm test." },
+  { id: "arranger", name: "Bluebridge Securities", role: "the underwriter/dealer", pro: "Underwriter / arranger (dealer)", does: "Designs the floors with the seller, calls investors, takes orders and sells the deal.", like: "A wedding planner coordinating every vendor.", paid: "A fee of about 0.3% of the deal.", here: "Runs your order book in step 6." },
+  { id: "ratings", name: "Polaris Ratings & Meridian Credit", role: "the rating agencies", pro: "Rating agencies", does: "Stress-test each floor and give it a grade from AAA down.", like: "A crash-test lab handing out safety stars.", paid: "A fee from the deal for grading it.", here: "Grade your floors in step 5." },
+  { id: "investors", name: "Investors", role: "the bond buyers", pro: "Buy-side: money managers, insurers, banks, hedge funds", does: "Buy the floors that match how much risk they can stomach.", like: "Diners choosing a mild set menu or the spicy special.", paid: "Interest plus their money back, paid by the special purpose vehicle.", here: "Four mock investors bid in step 6: Evergreen Fund Managers, Bedrock Mutual Insurance, Harborline Bank Treasury and Quickstrike Capital (each an investor)." },
+  { id: "mm", name: "Kestrel Markets", role: "the market maker", pro: "Market maker (dealer desk)", does: "After the sale, always ready to buy or sell floors so investors can trade.", like: "A used-car dealer: always open, buys a bit lower than it sells.", paid: "The gap between its buy and sell price.", here: "Quotes you prices on the trading floor in step 7." },
 ];
 
 // ---------- investors (fictional) ----------
@@ -341,7 +362,7 @@ function pv(cf: number[], rate: number): number {
 
 // ---------- awards ----------
 const AW: Record<string, [number, string]> = {
-  players: [50, "Networker"], pool: [40, ""], graded: [30, ""], aaa: [60, "AAA Achieved"], closed: [80, "Deal Closed"], sweet: [50, "Sweet-Spot Pricing"], mm: [60, "Market Maker"], green: [60, "In the Green"], recession: [80, "Survived the Recession"], explorer: [80, "Explorer"], tripwire: [40, "Tripwire Spotter"],
+  players: [50, "Networker"], pool: [40, ""], graded: [30, ""], aaa: [60, "AAA Achieved"], closed: [80, "Deal Closed"], sweet: [50, "Sweet-Spot Pricing"], mm: [60, "Market Maker"], green: [60, "In the Green"], recession: [80, "Survived the Recession"], explorer: [80, "Explorer"], tripwire: [40, "Tripwire Spotter"], q8: [20, ""],
   q0: [20, ""], q1: [20, ""], q2: [20, ""], q3: [20, ""], q4: [20, ""], q5: [20, ""], q6: [20, ""], q7: [20, ""],
 };
 const LEVELS: [number, string][] = [[0, "Intern"], [140, "Analyst"], [300, "Associate"], [480, "Vice President"], [680, "Head of Desk"]];
@@ -359,13 +380,16 @@ const QUIZ: Quiz[] = [
   { q: "Lots of borrowers pay off early. The average wait for your money...", opts: ["gets shorter", "gets longer", "stays the same"], ok: 0, why: "Early payoffs return money sooner, so the average wait shrinks. For home loans this happens when rates fall." },
 ];
 
-type Mkt = { started: boolean; m: number; bench: number; unemp: number; cprM: number; sevAdd: number; mkt: number[]; orig: number[]; hist: { m: number; px: number[] }[]; cash: number; pos: number[]; trades: { m: number; side: string; fl: number; px: number }[]; news: { m: number; title: string; detail: string }[] };
-const EMPTY_MKT: Mkt = { started: false, m: 0, bench: BENCH, unemp: 4, cprM: 1, sevAdd: 0, mkt: [0, 0, 0], orig: [0, 0, 0], hist: [], cash: 1e7, pos: [0, 0, 0], trades: [], news: [] };
+const QUIZ_SPV: Quiz = { q: "Why are the loans put in a special purpose vehicle (SPV)?", opts: ["So the lender's creditors can't grab them if the lender goes bust", "So the loans earn more interest", "So the lender can keep the payments for itself"], ok: 0, why: "After a true sale the loans belong to the SPV, which is bankruptcy-remote. Even if the lender fails, investors keep getting paid from borrowers' payments." };
+
+type Mkt = { started: boolean; bk: boolean; m: number; bench: number; unemp: number; cprM: number; sevAdd: number; mkt: number[]; orig: number[]; hist: { m: number; px: number[] }[]; cash: number; pos: number[]; trades: { m: number; side: string; fl: number; px: number }[]; news: { m: number; title: string; detail: string }[] };
+const EMPTY_MKT: Mkt = { started: false, bk: false, m: 0, bench: BENCH, unemp: 4, cprM: 1, sevAdd: 0, mkt: [0, 0, 0], orig: [0, 0, 0], hist: [], cash: 1e7, pos: [0, 0, 0], trades: [], news: [] };
 const GEN: Ev[] = [
   { title: "Quiet month", detail: "Payments came in as usual. Not much moved.", w: 3 },
   { title: "Safe rate up 0.25%", detail: "The central bank nudged rates up. New bonds pay more, so older ones drop in price, most for floors with a long wait.", w: 1.5, bench: 0.0025 },
   { title: "Safe rate down 0.25%", detail: "Rates were cut. Older bonds that pay more now look better, so their prices rise.", w: 1.5, bench: -0.0025 },
   { title: "Investors hungry for income", detail: "Lots of cash chasing bonds. Everyone accepts less extra pay, so prices rise.", w: 1, sp: [-6, -15, -25] },
+  { title: "Lender files for bankruptcy", detail: "", w: 0.6, bk: true, sp: [3, 10, 25] },
 ];
 
 // ---------- small custom pieces ----------
@@ -579,7 +603,7 @@ export default function App() {
   const setStage = (n: number): void => { setStageRaw(n); setMaxSeen((m: number) => Math.max(m, n)); };
   const xp = awards.reduce((s: number, k: string) => s + (AW[k] ? AW[k][0] : 0), 0);
   const badges = awards.filter((k: string) => AW[k] && AW[k][1]).map((k: string) => AW[k][1]);
-  if (QUIZ.every((q: Quiz, i: number) => awards.includes("q" + i))) badges.push("Quiz Master");
+  if (QUIZ.every((q: Quiz, i: number) => awards.includes("q" + i)) && awards.includes("q8")) badges.push("Quiz Master");
 
   const pickAsset = (id: string): void => {
     const X = ASSETS.find((x: AssetDef) => x.id === id) ?? A0;
@@ -641,7 +665,7 @@ export default function App() {
   const pnl = mk.cash + holdVal - 1e7;
 
   const openMarket = (): void => {
-    const s: Mkt = { ...EMPTY_MKT, started: true, mkt: spreads.slice(), orig: spreads.slice(), news: [{ m: 0, title: "Trading floor open", detail: `Your ${A.name.toLowerCase()} deal has been sold. Kestrel Markets will now quote you prices to buy or sell any floor.` }] };
+    const s: Mkt = { ...EMPTY_MKT, started: true, mkt: spreads.slice(), orig: spreads.slice(), news: [{ m: 0, title: "Trading floor open", detail: `Your ${A.name.toLowerCase()} deal has been sold. ${MM} will now quote you prices to buy or sell any floor.` }] };
     s.hist = [{ m: 0, px: priceMids(s) }];
     setMk(s);
   };
@@ -651,11 +675,12 @@ export default function App() {
     const wt = evs.reduce((s: number, e: Ev) => s + e.w, 0);
     let pick = r() * wt, ev = evs[0];
     for (const e of evs) { if (pick < e.w) { ev = e; break; } pick -= e.w; }
-    const s: Mkt = { ...mk, m: mk.m + 1, mkt: mk.mkt.slice(), pos: mk.pos.slice() };
+    if (ev.bk && mk.bk) ev = evs[0];
+    const s: Mkt = { ...mk, m: mk.m + 1, mkt: mk.mkt.slice(), pos: mk.pos.slice(), bk: mk.bk || !!ev.bk };
     s.bench = clamp(s.bench + (ev.bench ?? 0), 0.005, 0.09);
     s.unemp = clamp(s.unemp + (ev.unemp ?? 0), 3, 12);
     s.cprM = ev.cpr ? Math.min(4, s.cprM * ev.cpr) : 1 + (s.cprM - 1) * 0.7;
-    let detail = ev.detail;
+    let detail = ev.bk ? `Your bonds keep paying. The ${A.thing} were sold in a true sale to ${nr(A.trust, SPV_ROLE)}, so ${A.short}'s creditors can't touch them. A backup servicer takes over collecting. Prices dip a little on the scary headline.` : ev.detail;
     if (ev.bench) {
       s.cprM = Math.min(4, s.cprM * (ev.bench < 0 ? 1 + A.refi * 2 : 1 / (1 + A.refi)));
       if (ev.bench < 0 && A.refi > 0.2) detail += " Homeowners start refinancing, so early payoffs jump.";
@@ -667,8 +692,9 @@ export default function App() {
     });
     s.cash = mk.cash + mk.pos.reduce((acc: number, p: number, i: number) => acc + (p * 1e6 * coupons[i]) / 12, 0);
     const row = baseRun.months[s.m - 1];
-    const extra = row ? ` ${A.serv} collected ${fm(row.collected)} from ${A.who} this month.` : "";
-    s.news = [{ m: s.m, title: ev.title, detail: detail + extra }, ...mk.news].slice(0, 6);
+    const extra = row ? ` ${nr(ev.bk ? "The backup servicer" : A.serv, "the servicer")} collected ${fm(row.collected)} from ${A.who} this month.` : "";
+    const title = ev.bk ? `${nr(A.orig, lr(A))} files for bankruptcy` : ev.title;
+    s.news = [{ m: s.m, title, detail: detail + extra }, ...mk.news].slice(0, 6);
     const px = priceMids(s);
     s.hist = [...mk.hist, { m: s.m, px }];
     setMk(s);
@@ -715,7 +741,7 @@ export default function App() {
     { label: "Top floor", pct: a, color: C[0], note: `${a}% \u00b7 ${gname(grades[0])}` },
     { label: "Middle floor", pct: b, color: C[1], note: `${b}% \u00b7 ${gname(grades[1])}` },
     { label: "Bottom floor", pct: c, color: C[2], note: `${c}% \u00b7 ${gname(grades[2])}` },
-    { label: "Owner's slice (padding)", pct: oc, color: t.dataviz.other, note: `${oc}% \u00b7 kept by ${A.short}` },
+    { label: "Owner's slice (padding)", pct: oc, color: t.dataviz.other, note: `${oc}% \u00b7 kept by ${nr(A.short, lr(A))}` },
     { label: "Rainy-day + leftover", pct: res + xsCredit, color: "", note: `${(res + xsCredit).toFixed(1)}% extra cushion`, dashed: true },
   ];
   const floods = [
@@ -732,7 +758,7 @@ export default function App() {
       case 2: return gf < 1 ? "With the government promise switched on, losses almost vanish. The real risks become timing (early payoffs) and interest rates." : pool.score < 640 ? "A riskier basket: higher rates, but more borrowers will stop paying. You'll need a thicker cushion in the next step." : pool.score > 750 ? "A very safe basket. Few losses expected, but low rates mean little leftover interest." : "Try moving the score slider and watch expected losses change.";
       case 3: return grades[0] !== "AAA" ? "Your top floor isn't AAA yet. Make the floors below it thicker, leave more padding, or add to the rainy-day fund. Watch the red flood lines." : oc < 3 ? "Top floor is AAA. Careful: very little padding means leftover money for the owner disappears fast if losses rise." : "Nice. The top floor sits above the AAA flood line. Lower floors pay more because they sit closer to the water.";
       case 4: return graded ? `The agencies have spoken. Top floor: ${gname(grades[0])}. Change floor sizes in step 4 and come back to try for a better grade.` : "Press the button to send your deal to the grading agencies. They imagine storms several times worse than expected and check which floors stay dry.";
-      case 5: return closed ? `Deal sold! ${A.short} has its cash. Next, see how your floors trade afterwards.` : !allCovered ? "At least one floor has fewer orders than bonds for sale. Offer a bit more extra pay on that floor." : book.some((x: { cover: number }) => x.cover > 2.5) ? "Every floor is covered, but some are hugely oversubscribed. You could offer less extra pay." : "Every floor is covered at a sensible level. Close the deal!";
+      case 5: return closed ? `Deal sold! ${nr(A.orig, lr(A))} has its cash. Next, see how your floors trade afterwards.` : !allCovered ? "At least one floor has fewer orders than bonds for sale. Offer a bit more extra pay on that floor." : book.some((x: { cover: number }) => x.cover > 2.5) ? "Every floor is covered, but some are hugely oversubscribed. You could offer less extra pay." : "Every floor is covered at a sensible level. Close the deal!";
       case 6: return !mk.started ? "Open the trading floor, then press Next month to let time pass. Buy floors you think will rise, sell ones you think will fall." : A.refi > 0.2 ? "Home-loan tip: rate cuts trigger refinancing, which returns money early. Watch what that does to prices above 100." : "Tip: bad economic news hits lower floors hardest; rate rises dent everything a little. Holding bonds also earns monthly interest.";
       default: return sRun.early > 0 ? `The tripwire fired in month ${sRun.early}: refilling stopped and every repaid dollar went to investors.` : sRun.tr[0].loss > 1 ? "Ouch: even the top floor lost money in this storm, like many 'AAA' home-loan bonds in 2008. Try a thicker cushion in step 4." : sRun.tr[2].loss > 1 ? "The storm reached the bottom floor, but the top stayed dry. That's the floors doing their job." : "Everyone was paid in full. Try a harsher storm.";
     }
@@ -759,7 +785,9 @@ export default function App() {
               { label: "What it is", value: <span>{A.what} Pro name: <Term k={A.tk}>{A.pro}</Term>.</span> },
               { label: "Think of it like", value: A.like },
               { label: "Who pays", value: A.who },
-              { label: "Who sells it", value: A.orig },
+              { label: "Who sells it", value: nr(A.orig, lr(A)) },
+              { label: "Walled-off box (SPV)", value: <span>{A.trust}, the <Term k="spv">special purpose vehicle</Term> that holds the basket and issues the bonds</span> },
+              { label: "Who collects payments", value: nr(A.serv, "the servicer") },
               { label: "How money comes in", value: howPays },
               { label: "Typical losses", value: `${pc(el)} ${elText} (mock)` },
               { label: "Fun fact", value: A.fact },
@@ -782,8 +810,8 @@ export default function App() {
         <Fragment>
           <Section heading="The whole idea in 30 seconds">
             <Steps steps={[
-              { title: `${A.who.charAt(0).toUpperCase() + A.who.slice(1)} pay`, detail: <span>{A.orig} has thousands of {A.thing}. Every month {A.who} pay.</span> },
-              { title: "Everything goes into a basket", detail: <span>The {A.thing} move into a <Term k="spv">lockbox company</Term>, forming a <Term k="pool">basket</Term>.</span> },
+              { title: `${A.who.charAt(0).toUpperCase() + A.who.slice(1)} pay`, detail: <span>{nr(A.orig, lr(A))} has thousands of {A.thing}. Every month {A.who} pay.</span> },
+              { title: "The loans move into a walled-off box", detail: <span>{nr(A.short, lr(A))} sells the {A.thing} in a <Term k="truesale">true sale</Term> to a <Term k="spv">special purpose vehicle (SPV)</Term> called {A.trust}. It holds them as the <Term k="pool">basket</Term> and is <Term k="bkremote">walled off</Term> if {A.short} ever goes bust.</span> },
               { title: "The basket is cut into floors", detail: <span>Like a building in a flood: the <Term k="tranche">top floor</Term> stays dry longest, the bottom floor gets wet first, so it earns more.</span> },
               { title: "Floors get graded and sold", detail: <span>Agencies give each floor a <Term k="rating">grade</Term>; a dealer sells them to investors as <Term k="abs">bonds</Term>.</span> },
               { title: "Money flows down every month", detail: <span>The <Term k="servicer">payment collector</Term> gathers payments and the <Term k="trustee">referee</Term> pays floors in <Term k="waterfall">order</Term>.</span> },
@@ -792,38 +820,47 @@ export default function App() {
           </Section>
           <Section heading="Who's who: follow the money">
             <Diagram direction="horizontal" nodes={[
-              { id: "d", label: PL[0].name, detail: "pay monthly", kind: "person" },
-              { id: "l", label: A.short, detail: "the seller" },
-              { id: "s", label: A.serv, detail: "payment collector" },
-              { id: "t", label: "Lockbox trust", detail: "owns the basket" },
-              { id: "g", label: "Granite Trust Co.", detail: "referee" },
-              { id: "r", label: "Grading agencies", detail: "Polaris, Meridian" },
-              { id: "u", label: "Bluebridge Securities", detail: "sells the deal" },
-              { id: "i", label: "Investors", detail: "buy the floors", kind: "person" },
-              { id: "m", label: "Kestrel Markets", detail: "trading dealer" },
+              { id: "d", label: PL[0].name, detail: "the borrowers", kind: "person" },
+              { id: "l", label: A.orig, detail: lr(A) },
+              { id: "s", label: A.serv, detail: "the servicer" },
+              { id: "t", label: A.trust, detail: "special purpose vehicle (SPV)", kind: "decision" },
+              { id: "g", label: "Granite Trust Co.", detail: "the trustee" },
+              { id: "r", label: "Polaris & Meridian", detail: "the rating agencies" },
+              { id: "u", label: "Bluebridge Securities", detail: "the underwriter/dealer" },
+              { id: "i", label: "Investors", detail: "the bond buyers", kind: "person" },
+              { id: "m", label: "Kestrel Markets", detail: "the market maker" },
             ]} edges={[
               { from: "l", to: "d", label: "lends" },
-              { from: "d", to: "s", label: "payments" },
-              { from: "l", to: "t", label: "sells basket" },
-              { from: "s", to: "t", label: "passes cash" },
-              { from: "g", to: "t", label: "checks rules", dashed: true },
-              { from: "r", to: "u", label: "grades floors", dashed: true },
-              { from: "t", to: "u", label: "floors" },
-              { from: "u", to: "i", label: "sells" },
+              { from: "d", to: "s", label: "monthly payments" },
+              { from: "s", to: "t", label: "passes the cash" },
+              { from: "l", to: "t", label: "true sale of the loans" },
+              { from: "t", to: "l", label: "cash for the loans", dashed: true },
+              { from: "t", to: "u", label: "issues bonds" },
+              { from: "u", to: "i", label: "sells bonds" },
+              { from: "i", to: "t", label: "cash for bonds", dashed: true },
+              { from: "t", to: "i", label: "interest + repayments" },
+              { from: "g", to: "t", label: "watches the rules", dashed: true },
+              { from: "r", to: "u", label: "grades the floors", dashed: true },
               { from: "i", to: "m", label: "trade later" },
             ]} />
+            <Text>The box in the middle, {A.trust}, is the <Term k="spv">special purpose vehicle (SPV)</Term>. The loans go in, bonds come out, and every month borrowers' money flows through it to investors. Investors' cash for the bonds flows back through it to {nr(A.short, lr(A))}.</Text>
           </Section>
           <Section heading="Tap a player">
-            <Wrap>{PL.map((p: Player) => <Chip key={p.id} label={p.name} active={p.id === sel} done={seen.includes(p.id)} onClick={() => { setSel(p.id); const ns = seen.includes(p.id) ? seen : [...seen, p.id]; setSeen(ns); if (ns.length >= 6) award("players"); }} />)}</Wrap>
+            <Wrap>{PL.map((p: Player) => <Chip key={p.id} label={nr(p.name, p.role)} active={p.id === sel} done={seen.includes(p.id)} onClick={() => { setSel(p.id); const ns = seen.includes(p.id) ? seen : [...seen, p.id]; setSeen(ns); if (ns.length >= 6) award("players"); }} />)}</Wrap>
           </Section>
-          <Section heading={pl.name}>
+          <Section heading={pl.title ?? nr(pl.name, pl.role)}>
             <Properties items={[
+              ...(pl.title ? [{ label: "Its name in this deal", value: pl.name }] : []),
               { label: "What they do", value: pl.does },
               { label: "Think of it like", value: pl.like },
               { label: "How they get paid", value: pl.paid },
               { label: "In this game", value: pl.here },
+              ...(pl.extra ?? []),
               { label: "Pro job title", value: pl.pro },
             ]} />
+          </Section>
+          <Section heading="Quick check: the special purpose vehicle">
+            <QuizBox quiz={QUIZ_SPV} ans={quiz[8]} onAns={(i: number) => { setQuiz({ ...quiz, 8: i }); if (i === QUIZ_SPV.ok) award("q8"); }} />
           </Section>
         </Fragment>
       )}
@@ -844,7 +881,7 @@ export default function App() {
                 { label: A.scoreTerm ? "Average credit score" : A.scoreLabel, value: pool.score.toFixed(0) },
                 { label: "Average rate", value: pc(pool.apr * 100, 2) },
                 { label: "Expected losses", value: <Term k="el">{`${pc(el, el < 1 ? 2 : 1)} of the basket ${elText}`}</Term> },
-                { label: "Collected in month 1", value: `${fm(baseRun.months[0].collected)} by ${A.serv}` },
+                { label: "Collected in month 1", value: `${fm(baseRun.months[0].collected)} by ${nr(A.serv, "the servicer")}` },
                 { label: "Assumed default rate", value: <Term k="cdr">{pc(baseCdr * 100)} a year</Term> },
                 A.rev ? { label: "Monthly payback rate", value: <Term k="mpr">{pc(A.cpr * 100, 0)} of balances a month</Term> } : { label: "Assumed early payoffs", value: <Term k="cpr">{pc(A.cpr * 100, 0)} a year</Term> },
                 { label: "How money comes in", value: howPays },
@@ -853,7 +890,7 @@ export default function App() {
           </Grid>
           <Section heading="Strength scores in your basket" caption="Number of items by score; yellow bars are the weakest (under 620).">
             <Histogram bins={pool.bins} />
-            <Text>{A.orig} wants its cash now rather than waiting years to be repaid, so it will sell this basket to investors through a lockbox trust.</Text>
+            <Text>{nr(A.orig, lr(A))} wants its cash now rather than waiting years to be repaid, so it will sell this basket to {nr(A.trust, SPV_ROLE)}, which issues bonds to investors.</Text>
           </Section>
         </Fragment>
       )}
@@ -866,7 +903,7 @@ export default function App() {
               <Slider label="Middle floor" value={b} min={0} max={Math.min(30, 100 - a - c)} step={1} fmt={(v: number) => `${v}%`} onChange={setB} />
               <Slider label="Bottom floor (riskiest sold floor)" value={c} min={0} max={Math.min(25, 100 - a - b)} step={1} fmt={(v: number) => `${v}%`} onChange={setC} />
               <Slider label={<span><Term k="reserve">Rainy-day fund</Term></span>} value={res} min={0} max={3} step={0.25} fmt={(v: number) => `${v}% of basket`} onChange={setRes} />
-              <Text>Whatever you don't sell is <Term k="oc">extra padding</Term>: {A.short} keeps it as the <Term k="residual">owner's slice</Term>. Right now that's {oc}%. Each month, <Term k="xs">leftover interest</Term> of {pc(xs, 2)} a year soaks up losses first.</Text>
+              <Text>Whatever you don't sell is <Term k="oc">extra padding</Term>: {nr(A.short, lr(A))} keeps it as the <Term k="residual">owner's slice</Term>. Right now that's {oc}%. Each month, <Term k="xs">leftover interest</Term> of {pc(xs, 2)} a year soaks up losses first.</Text>
             </Section>
             <Section heading="Your building">
               <Building layers={layers} floods={floods} />
@@ -882,7 +919,7 @@ export default function App() {
       {stage === 4 && (
         <Fragment>
           <Section heading="Send it to the grading agencies">
-            <Text>Polaris Ratings and Meridian Credit imagine storms several times worse than expected losses ({pc(el, el < 1 ? 2 : 1)} {elText}). For {A.name.toLowerCase()}, a floor whose cushion survives {A.thr[0]}x gets AAA, {A.thr[1]}x AA, {A.thr[2]}x A, {A.thr[3]}x BBB, {A.thr[4]}x BB. Below that: not rated.</Text>
+            <Text>{RATERS} imagine storms several times worse than expected losses ({pc(el, el < 1 ? 2 : 1)} {elText}). For {A.name.toLowerCase()}, a floor whose cushion survives {A.thr[0]}x gets AAA, {A.thr[1]}x AA, {A.thr[2]}x A, {A.thr[3]}x BBB, {A.thr[4]}x BB. Below that: not rated.</Text>
             <Wrap><Button variant="primary" label={graded ? "Re-check grades" : "Ask for grades"} onClick={() => { setGraded(true); award("graded"); if (grades[0] === "AAA") award("aaa"); }} /></Wrap>
           </Section>
           {graded && (
@@ -904,16 +941,16 @@ export default function App() {
               {[0, 1, 2].map((i: number) => (
                 <Slider key={i} label={<span>{FL[i]} ({gname(grades[i])}): <Term k="spread">extra pay</Term></span>} value={spreads[i]} min={[20, 40, 80][i]} max={[300, 600, 1000][i]} step={5} fmt={(v: number) => `${v} bps = ${pc(BENCH * 100 + v / 100, 2)}`} onChange={(v: number) => { if (closed) return; const n = spreads.slice(); n[i] = v; setSpreads(n); }} />
               ))}
-              <Text>Interest paid = <Term k="benchmark">safe rate</Term> 4.00% + extra pay. Less extra pay leaves more <Term k="xs">leftover interest</Term> for {A.short}: now {pc(xs, 2)} a year, about {fm((xs / 100) * B)}.</Text>
+              <Text>Interest paid = <Term k="benchmark">safe rate</Term> 4.00% + extra pay. Less extra pay leaves more <Term k="xs">leftover interest</Term> for {nr(A.short, lr(A))}: now {pc(xs, 2)} a year, about {fm((xs / 100) * B)}.</Text>
             </Section>
             <Section heading="Orders vs. supply">
               <Table columns={["Floor", "For sale", "Orders", "Covered"]} rows={[0, 1, 2].map((i: number) => [FL[i], fm(book[i].size), fm(book[i].cover * book[i].size), <Status key={i} tone={book[i].cover < 1 ? "danger" : book[i].cover > 2.5 ? "warning" : "success"}>{`${book[i].cover.toFixed(2)}x`}</Status>])} />
-              <Text>Bluebridge Securities is <Term k="book">taking orders</Term>. Aim for 1x to 2.5x <Term k="oversub">covered</Term> on every floor.</Text>
+              <Text>{DEALER} is <Term k="book">taking orders</Term>. Aim for 1x to 2.5x <Term k="oversub">covered</Term> on every floor.</Text>
               <Wrap><Button variant="primary" disabled={!allCovered || closed} label={closed ? "Deal closed" : "Close the deal"} onClick={() => { setClosed(true); award("closed"); if (book.every((x: { cover: number }) => x.cover <= 2.5)) award("sweet"); }} />{closed && <Button label="Reopen to re-price" onClick={() => setClosed(false)} />}</Wrap>
             </Section>
           </Grid>
           <Section heading="The investors calling in">
-            <Table columns={["Investor", "Who they are", "Top", "Middle", "Bottom"]} rows={INV.map((v: { name: string; type: string }, j: number) => [v.name, v.type, ...[0, 1, 2].map((i: number) => { const o = book[i].orders[j]; return !o.likes ? "Not their style" : o.ok ? fm(o.amt) : `Wants ${Math.ceil(o.resv)}+ bps`; })])} />
+            <Table columns={["Investor", "Who they are", "Top", "Middle", "Bottom"]} rows={INV.map((v: { name: string; type: string }, j: number) => [nr(v.name, "an investor"), v.type, ...[0, 1, 2].map((i: number) => { const o = book[i].orders[j]; return !o.likes ? "Not their style" : o.ok ? fm(o.amt) : `Wants ${Math.ceil(o.resv)}+ bps`; })])} />
           </Section>
         </Fragment>
       )}
@@ -921,13 +958,13 @@ export default function App() {
       {stage === 6 && (
         <Fragment>
           {!mk.started ? (
-            <Section heading="Kestrel Markets trading floor">
-              <Text>You get $10M of mock cash. Kestrel Markets, the dealer, quotes a <Term k="bid">price you can sell at</Term> and a slightly higher <Term k="ask">price you can buy at</Term> for each floor of your {A.name.toLowerCase()} deal. Prices are per $100 owed (<Term k="price">price</Term>), trades are $1M each, and you can also <Term k="short">bet a floor drops</Term> by selling up to $5M you don't own. News is tailored to {A.name.toLowerCase()}.</Text>
+            <Section heading={`Trading floor at ${MM}`}>
+              <Text>You get $10M of mock cash. {MM} quotes a <Term k="bid">price you can sell at</Term> and a slightly higher <Term k="ask">price you can buy at</Term> for each floor of your {A.name.toLowerCase()} deal. Prices are per $100 owed (<Term k="price">price</Term>), trades are $1M each, and you can also <Term k="short">bet a floor drops</Term> by selling up to $5M you don't own. News is tailored to {A.name.toLowerCase()}.</Text>
               <Wrap><Button variant="primary" label="Open the trading floor" onClick={openMarket} /></Wrap>
             </Section>
           ) : (
             <Fragment>
-              <Section heading={`Month ${mk.m}: quotes`}>
+              <Section heading={`Month ${mk.m}: quotes from ${MM}`}>
                 <Table columns={["Floor", "Sell at", "Buy at", "Extra pay now", "You hold", "Trade"]} rows={[0, 1, 2].map((i: number) => [FL[i], (mids[i] - hw[i]).toFixed(2), (mids[i] + hw[i]).toFixed(2), `${mk.mkt[i].toFixed(0)} bps`, `${mk.pos[i] >= 0 ? "" : "short "}$${Math.abs(mk.pos[i])}M`, <Wrap key={i}><Button label="Buy $1M" onClick={() => trade(i, true)} /><Button label="Sell $1M" onClick={() => trade(i, false)} /></Wrap>])} />
                 <Wrap><Button variant="primary" label="Next month" onClick={nextMonth} /><Button label="Restart market" onClick={openMarket} /></Wrap>
               </Section>
@@ -955,7 +992,7 @@ export default function App() {
               )}
               {mk.trades.length > 0 && (
                 <Section heading="Your trade log">
-                  <Table columns={["Month", "Action", "Floor", "Price"]} rows={mk.trades.slice(0, 8).map((x: { m: number; side: string; fl: number; px: number }) => [String(x.m), x.side + " $1M", FL[x.fl], x.px.toFixed(3)])} />
+                  <Table columns={["Month", "Action", "Floor", "Price"]} rows={mk.trades.slice(0, 8).map((x: { m: number; side: string; fl: number; px: number }) => [String(x.m), `${x.side} $1M ${x.side === "Bought" ? "from" : "to"} ${MM}`, FL[x.fl], x.px.toFixed(3)])} />
                 </Section>
               )}
             </Fragment>
@@ -980,7 +1017,7 @@ export default function App() {
           </Section>
           <Section heading="Who got paid back">
             <Table columns={["Floor", "Size", "Interest received", "Paid back", "Lost", "Avg wait", "Result"]} rows={[0, 1, 2].map((i: number) => { const o = sRun.tr[i]; const lp = trs[i].size > 0 ? (o.loss / trs[i].size) * 100 : 0; return [FL[i], fm(trs[i].size), fm(o.int), fm(o.prin), fm(o.loss), `${o.wal.toFixed(1)} yrs`, <Status key={i} tone={lp < 0.01 ? "success" : lp < 50 ? "warning" : "danger"}>{lp < 0.01 ? "Paid in full" : `Lost ${pc(lp)}`}</Status>]; })} />
-            <Text>Basket losses in this storm: {fm(sRun.poolLoss)} ({pc((sRun.poolLoss / B) * 100)}). {A.short}'s owner's slice received {fm(sRun.equity)} in leftover money over the deal's life.{A.rev ? (sRun.early > 0 ? ` The emergency payback tripwire fired in month ${sRun.early}.` : " The emergency payback tripwire never fired.") : ""}</Text>
+            <Text>Basket losses in this storm: {fm(sRun.poolLoss)} ({pc((sRun.poolLoss / B) * 100)}). The owner's slice, kept by {nr(A.orig, lr(A))}, received {fm(sRun.equity)} in leftover money over the deal's life.{A.rev ? (sRun.early > 0 ? ` The emergency payback tripwire fired in month ${sRun.early}.` : " The emergency payback tripwire never fired.") : ""}</Text>
           </Section>
           <Section heading="Money still owed to each floor" caption={`$ millions outstanding every ${step} months.`}>
             <ColumnSeries stacked unit="$M" labels={sRun.months.filter((r: MonthRow) => r.m % step === 0).map((r: MonthRow) => `M${r.m}`)} series={[0, 1, 2].map((i: number) => ({ name: FL[i], values: sRun.months.filter((r: MonthRow) => r.m % step === 0).map((r: MonthRow) => Math.round(r.bal[i] / 1e5) / 10) }))} />
@@ -989,13 +1026,13 @@ export default function App() {
             <Slider label="Month" value={Math.min(month, term)} min={1} max={term} step={1} fmt={(v: number) => `Month ${v}`} onChange={setMonth} />
             {mrow && (
               <Rows rows={[
-                { lead: "1", title: `${A.serv} collected ${fm(mrow.collected)}`, detail: `Includes ${fm(mrow.recovery)} recovered by ${A.recover}.${mrow.refilling ? ` Repayments this month were used to buy new ${A.thing} (refilling).` : ""}` },
+                { lead: "1", title: `${nr(A.serv, "the servicer")} collected ${fm(mrow.collected)}`, detail: `Includes ${fm(mrow.recovery)} recovered by ${A.recover}.${mrow.refilling ? ` Repayments this month were used to buy new ${A.thing} (refilling).` : ""}` },
                 { lead: "2", title: `${fm(mrow.defaults)} went bad`, detail: `After recoveries, ${fm(mrow.loss)} was lost for good.`, status: mrow.loss > 0 ? { label: "Losses", tone: "warning" } : undefined },
                 { lead: "3", title: `Servicer fee ${fm(mrow.fee)}`, detail: "Paid first, so the collecting keeps happening." },
                 { lead: "4", title: "Interest to each floor, top first", detail: [0, 1, 2].map((i: number) => `${FL[i]} ${fm(mrow.intPaid[i])}`).join(" \u00b7 ") },
                 { lead: "5", title: "Money paid back, one floor at a time", detail: [0, 1, 2].map((i: number) => `${FL[i]} ${fm(mrow.prinPaid[i])}`).join(" \u00b7 ") },
-                { lead: "6", title: mrow.reserveDraw > 0 ? `Rainy-day fund used: ${fm(mrow.reserveDraw)}` : `Rainy-day fund holds ${fm(mrow.reserve)}`, detail: "The referee (Granite Trust Co.) checks each step follows the rules." },
-                { lead: "7", title: `Leftover to ${A.short}: ${fm(mrow.toEquity)}`, detail: mrow.shortfall > 0 ? `Cushion breached: floors are owed ${fm(mrow.shortfall)} more than the basket holds. The bottom floor is first in line to lose it.` : "Only what's left after every floor is paid.", status: mrow.shortfall > 0 ? { label: "Cushion breached", tone: "danger" } : undefined },
+                { lead: "6", title: mrow.reserveDraw > 0 ? `Rainy-day fund used: ${fm(mrow.reserveDraw)}` : `Rainy-day fund holds ${fm(mrow.reserve)}`, detail: `${TRUSTEE} checks that ${nr(A.trust, SPV_ROLE)} follows the rules at each step.` },
+                { lead: "7", title: `Leftover to ${nr(A.short, lr(A))}: ${fm(mrow.toEquity)}`, detail: mrow.shortfall > 0 ? `Cushion breached: floors are owed ${fm(mrow.shortfall)} more than the basket holds. The bottom floor is first in line to lose it.` : "Only what's left after every floor is paid.", status: mrow.shortfall > 0 ? { label: "Cushion breached", tone: "danger" } : undefined },
               ]} />
             )}
           </Section>

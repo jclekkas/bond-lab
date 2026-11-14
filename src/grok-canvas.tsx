@@ -290,26 +290,46 @@ export function ColumnSeries({ labels, series, stacked, unit, format }: { labels
 // ---------- diagram: layered layout ----------
 type DNode = { id: string; label: string; detail?: string; kind?: "box" | "decision" | "terminal" | "person" };
 type DEdge = { from: string; to: string; label?: string; dashed?: boolean; detail?: string };
-export function Diagram({ nodes, edges, direction = "vertical" }: { nodes: DNode[]; edges: DEdge[]; direction?: "horizontal" | "vertical" }) {
+export function Diagram({ nodes, edges, direction: _dir = "vertical" }: { nodes: DNode[]; edges: DEdge[]; direction?: "horizontal" | "vertical" }) {
   const t = useGrokTheme();
-  // rank = longest path from a source
+  void _dir;
+  const direction = "vertical" as "horizontal" | "vertical"; // offline: always top-to-bottom
+  // lay out the main flow from solid arrows; dashed arrows (money back, oversight) are drawn on top
+  const solid = edges.filter((e) => !e.dashed);
+  const fwd: DEdge[] = [];
+  const state: Record<string, number> = {};
+  const visit = (id: string) => {
+    state[id] = 1;
+    for (const e of solid.filter((x) => x.from === id)) {
+      if (state[e.to] === 1) continue; // cycle: skip for layout
+      fwd.push(e);
+      if (!state[e.to]) visit(e.to);
+    }
+    state[id] = 2;
+  };
+  nodes.filter((n) => !solid.some((e) => e.to === n.id)).forEach((n) => { if (!state[n.id]) visit(n.id); });
+  nodes.forEach((n) => { if (!state[n.id]) visit(n.id); });
   const rank: Record<string, number> = {};
   nodes.forEach((n) => (rank[n.id] = 0));
-  for (let it = 0; it < nodes.length; it++) edges.forEach((e) => { if (rank[e.to] < rank[e.from] + 1) rank[e.to] = rank[e.from] + 1; });
-  // pull sources right next to their first child
-  nodes.forEach((n) => { const outs = edges.filter((e) => e.from === n.id); const ins = edges.filter((e) => e.to === n.id); if (!ins.length && outs.length) rank[n.id] = Math.max(0, Math.min(...outs.map((e) => rank[e.to])) - 1); });
+  for (let it = 0; it < nodes.length; it++) fwd.forEach((e) => { if (rank[e.to] < rank[e.from] + 1) rank[e.to] = rank[e.from] + 1; });
+  // nodes with no solid links sit just before what they point at
+  nodes.forEach((n) => {
+    if (solid.some((e) => e.from === n.id || e.to === n.id)) return;
+    const o = edges.filter((e) => e.from === n.id);
+    if (o.length) rank[n.id] = Math.max(0, Math.min(...o.map((e) => rank[e.to])) - 1);
+  });
   const maxR = Math.max(...Object.values(rank));
   const layers: DNode[][] = Array.from({ length: maxR + 1 }, () => []);
   nodes.forEach((n) => layers[rank[n.id]].push(n));
-  const NW = 150, NH = 54, GX = direction === "horizontal" ? 70 : 30, GY = direction === "horizontal" ? 34 : 70;
+  const NW = 200, NH = 56, GX = direction === "horizontal" ? 70 : 90, GY = direction === "horizontal" ? 34 : 62;
   const maxL = Math.max(...layers.map((L) => L.length));
   const pos: Record<string, { x: number; y: number }> = {};
   layers.forEach((L, r) => L.forEach((n, i) => {
     const off = (maxL - L.length) / 2;
     if (direction === "horizontal") pos[n.id] = { x: 20 + r * (NW + GX), y: 20 + (i + off) * (NH + GY) };
-    else pos[n.id] = { x: 20 + (i + off) * (NW + GX), y: 20 + r * (NH + GY) };
+    else pos[n.id] = { x: 250 + (i + off) * (NW + GX), y: 20 + r * (NH + GY) };
   }));
-  const W = direction === "horizontal" ? 40 + (maxR + 1) * NW + maxR * GX : 40 + maxL * NW + (maxL - 1) * GX;
+  const W = direction === "horizontal" ? 40 + (maxR + 1) * NW + maxR * GX : 270 + maxL * NW + (maxL - 1) * GX;
   const H = direction === "horizontal" ? 40 + maxL * NH + (maxL - 1) * GY : 40 + (maxR + 1) * NH + maxR * GY;
   const mid = (id: string) => ({ x: pos[id].x + NW / 2, y: pos[id].y + NH / 2 });
   const port = (id: string, toward: { x: number; y: number }) => {
@@ -320,28 +340,48 @@ export function Diagram({ nodes, edges, direction = "vertical" }: { nodes: DNode
   const C0 = t.dataviz.categorical[0];
   return (
     <div className="gk-scroll" style={{ ...card(t) }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ minWidth: direction === "horizontal" ? 720 : undefined, display: "block" }} role="img">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: Math.min(W, 820), display: "block", margin: "0 auto" }} role="img">
         <defs><marker id="gk-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill={t.text.tertiary} /></marker></defs>
         {edges.map((e, i) => {
-          const a = port(e.from, mid(e.to)), b = port(e.to, mid(e.from));
+          const twin = edges.some((x) => x.from === e.to && x.to === e.from);
+          const span = Math.abs(rank[e.to] - rank[e.from]);
+          const stroke = { stroke: t.text.tertiary, strokeWidth: 1.3, strokeDasharray: e.dashed ? "5 4" : undefined, markerEnd: "url(#gk-arrow)", fill: "none" };
+          const lbl = (x: number, y: number, anchor: "middle" | "end") => e.label ? (
+            <g>
+              <rect x={anchor === "middle" ? x - e.label.length * 3.3 - 4 : x - e.label.length * 6.6 - 6} y={y - 9} width={e.label.length * 6.6 + 8} height={16} rx={4} fill={t.bg.base} />
+              <text x={anchor === "middle" ? x : x - 2} y={y + 3} textAnchor={anchor} fontSize={11} fill={t.text.secondary}>{e.label}</text>
+            </g>
+          ) : null;
+          if (span >= 2) {
+            // skip-level arrow: bow out to the left so it never crosses the boxes in between
+            const p1 = pos[e.from], p2 = pos[e.to];
+            const ax = p1.x, ay = p1.y + NH / 2 + (e.dashed ? 8 : -8), bx = p2.x, by = p2.y + NH / 2 + (e.dashed ? 8 : -8);
+            const cx = Math.min(ax, bx) - (e.dashed ? 110 : 60);
+            return (
+              <g key={i}>
+                <path d={`M${ax},${ay} C${cx},${ay} ${cx},${by} ${bx - 2},${by}`} {...stroke} />
+                {lbl(Math.min(ax, bx) - 0.75 * 110 - 6, (ay + by) / 2 + (e.dashed ? 10 : -10), "end")}
+              </g>
+            );
+          }
+          const off = twin ? 8 : 0;
+          const a0 = port(e.from, mid(e.to)), b0 = port(e.to, mid(e.from));
+          const dx = b0.x - a0.x, dy = b0.y - a0.y, len = Math.hypot(dx, dy) || 1;
+          const a = { x: a0.x - (dy / len) * off, y: a0.y + (dx / len) * off }, b = { x: b0.x - (dy / len) * off, y: b0.y + (dx / len) * off };
           return (
             <g key={i}>
-              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={t.text.tertiary} strokeWidth={1.3} strokeDasharray={e.dashed ? "5 4" : undefined} markerEnd="url(#gk-arrow)" />
-              {e.label && (
-                <g>
-                  <rect x={(a.x + b.x) / 2 - e.label.length * 3.3 - 4} y={(a.y + b.y) / 2 - 9} width={e.label.length * 6.6 + 8} height={16} rx={4} fill={t.bg.base} />
-                  <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 + 3} textAnchor="middle" fontSize={11} fill={t.text.secondary}>{e.label}</text>
-                </g>
-              )}
+              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} {...stroke} />
+              {lbl((a.x + b.x) / 2, (a.y + b.y) / 2, "middle")}
             </g>
           );
         })}
         {nodes.map((n) => {
           const p = pos[n.id];
           const person = n.kind === "person";
+          const key = n.kind === "decision";
           return (
             <g key={n.id}>
-              <rect x={p.x} y={p.y} width={NW} height={NH} rx={person ? NH / 2 : 10} fill={t.bg.elevated} stroke={person ? C0 : t.border.strong} strokeWidth={person ? 1.6 : 1} />
+              <rect x={p.x} y={p.y} width={NW} height={NH} rx={person ? NH / 2 : 10} fill={key ? t.fill.accentSubtle : t.bg.elevated} stroke={person || key ? C0 : t.border.strong} strokeWidth={key ? 2.4 : person ? 1.6 : 1} />
               <text x={p.x + NW / 2} y={p.y + (n.detail ? 23 : 31)} textAnchor="middle" fontSize={12.5} fontWeight={600} fill={t.text.primary}>{n.label}</text>
               {n.detail && <text x={p.x + NW / 2} y={p.y + 40} textAnchor="middle" fontSize={11} fill={t.text.tertiary}>{n.detail}</text>}
             </g>
