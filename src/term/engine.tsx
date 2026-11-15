@@ -107,7 +107,7 @@ export type AssetDef = {
 };
 export const ASSETS: AssetDef[] = [
   {
-    id: "auto", name: "Car loans", pro: "auto ABS", tk: "abs", thing: "car loans", who: "drivers", orig: "Sunrise Auto Finance", short: "Sunrise", serv: "Sunrise Collections", trust: "Sunrise Auto Trust 2026-1", recover: "selling repossessed cars",
+    id: "auto", name: "Car loans", pro: "auto ABS", tk: "abs", thing: "car loans", who: "drivers", orig: "Ally Financial", oRole: "the auto lender", short: "Ally", serv: "Ally Servicing LLC", trust: "Ally Auto Receivables Trust 2026-1", recover: "selling repossessed cars",
     n: [2000, 40000, 1000, 20000], size: 26000, score: [580, 790, 5, 690], scoreLabel: "Average credit score", scoreTerm: true, rate: [4, 20, 0.25, 9.5], rateLabel: "Loan rate, APR (what drivers pay)", term: [36, 72, 12, 60],
     elBase: 0.6, elSlope: 0.07, sev: 0.5, cpr: 0.12, lifeK: 0.42, fee: 0.01, refi: 0.03, uSens: 0.3, liq: 1,
     st: [74, 10, 7, 1], sp: [80, 120, 220], xs: [1.5, 8], thr: [5, 4, 3, 2, 1.3], fairK: 1, inv: [1, 1, 1, 1],
@@ -121,7 +121,7 @@ export const ASSETS: AssetDef[] = [
     notes: [["Amortizing (how money comes in)", "Each loan shrinks a little every month as drivers pay (amortizing). Most are paid off in 3 to 6 years."]],
   },
   {
-    id: "mortgage", name: "Home mortgages", pro: "MBS", tk: "mbs", thing: "home loans", who: "homeowners", orig: "Hearthstone Home Lending", short: "Hearthstone", serv: "Hearthstone Loan Servicing", trust: "Hearthstone Mortgage Trust 2026-1", recover: "selling foreclosed homes",
+    id: "mortgage", name: "Home mortgages", pro: "MBS", tk: "mbs", thing: "home loans", who: "homeowners", orig: "Rocket Mortgage", oRole: "the home lender", short: "Rocket", serv: "Mr. Cooper", trust: "Rocket Mortgage Trust 2026-1", recover: "selling foreclosed homes",
     n: [500, 6000, 100, 2000], size: 320000, score: [620, 800, 5, 740], scoreLabel: "Average credit score", scoreTerm: true, rate: [3, 9, 0.125, 6.5], rateLabel: "Mortgage rate (what homeowners pay)", term: [180, 360, 60, 360],
     elBase: 1.0, elSlope: 0.1, sev: 0.35, cpr: 0.08, lifeK: 0.3, fee: 0.0025, refi: 0.35, uSens: 0.2, liq: 0.6, guar: "Agency guarantee (government-backed loans)",
     st: [88, 5, 3, 0.5], sp: [95, 185, 280], xs: [2, 6], thr: [5, 4, 3, 2, 1.3], fairK: 1.2, inv: [1, 1.2, 1.5, 0.9],
@@ -139,7 +139,7 @@ export const ASSETS: AssetDef[] = [
     ],
   },
   {
-    id: "cards", name: "Credit cards", pro: "credit card ABS", tk: "revolving", thing: "card balances", who: "cardholders", orig: "Bluewave Card Services", oRole: "the card company", short: "Bluewave", serv: "Bluewave Card Services", trust: "Bluewave Card Master Trust", recover: "collection agencies",
+    id: "cards", name: "Credit cards", pro: "credit card ABS", tk: "revolving", thing: "card balances", who: "cardholders", orig: "Capital One", oRole: "the card issuer", short: "Capital One", serv: "Capital One, N.A.", trust: "Capital One Multi-asset Execution Trust", recover: "collection agencies",
     n: [20000, 300000, 10000, 150000], size: 3200, score: [600, 800, 5, 700], scoreLabel: "Average credit score", scoreTerm: true, rate: [14, 29, 0.5, 22], rateLabel: "Card APR (what cardholders pay)", term: [36, 84, 12, 60],
     elBase: 1.5, elSlope: 0.06, annual: true, sev: 0.9, cpr: 0.18, lifeK: 1, fee: 0.02, rev: true, refi: 0, uSens: 0.45, liq: 0.6,
     st: [78, 7, 7, 1], sp: [60, 100, 130], xs: [0.5, 8], thr: [5, 4, 3, 2, 1.3], fairK: 0.8, inv: [1, 1, 1.3, 1],
@@ -157,7 +157,7 @@ export const ASSETS: AssetDef[] = [
     ],
   },
   {
-    id: "student", name: "Student loans", pro: "student loan ABS", tk: "abs", thing: "student loans", who: "graduates", orig: "Brightpath Student Lending", short: "Brightpath", serv: "Brightpath Loan Services", trust: "Brightpath Student Loan Trust 2026-1", recover: "collections",
+    id: "student", name: "Student loans", pro: "student loan ABS", tk: "abs", thing: "student loans", who: "graduates", orig: "Navient", oRole: "the student lender", short: "Navient", serv: "Navient Solutions", trust: "Navient Student Loan Trust 2026-1", recover: "collections",
     n: [2000, 40000, 1000, 15000], size: 32000, score: [620, 800, 5, 710], scoreLabel: "Average credit score", scoreTerm: true, rate: [4, 14, 0.25, 8], rateLabel: "Loan rate, APR (what graduates pay)", term: [120, 240, 60, 120],
     elBase: 1.0, elSlope: 0.08, sev: 0.75, cpr: 0.05, lifeK: 0.4, fee: 0.01, defer: [0.2, 24], refi: 0.1, uSens: 0.2, liq: 1.3, guar: "FFELP guarantee (government-guaranteed loans)",
     st: [78, 8, 5, 1], sp: [90, 165, 260], xs: [1.5, 6], thr: [5, 4, 3, 2, 1.3], fairK: 1.1, inv: [1, 1.1, 1, 1],
@@ -174,7 +174,7 @@ export const ASSETS: AssetDef[] = [
     ],
   },
   {
-    id: "equipment", name: "Equipment leases", pro: "equipment ABS", tk: "lease", thing: "equipment leases", who: "businesses", orig: "Ironclad Equipment Finance", oRole: "the leasing company", short: "Ironclad", serv: "Ironclad Lease Servicing", trust: "Ironclad Equipment Trust 2026-1", recover: "selling repossessed machines",
+    id: "equipment", name: "Equipment leases", pro: "equipment ABS", tk: "lease", thing: "equipment leases", who: "businesses", orig: "John Deere Capital Corporation", oRole: "the equipment finance company", short: "John Deere Capital", serv: "John Deere Capital Corporation", trust: "John Deere Owner Trust 2026", recover: "selling repossessed machines",
     n: [500, 10000, 250, 4000], size: 85000, score: [600, 800, 5, 710], scoreLabel: "Average business credit score", rate: [5, 14, 0.25, 8.5], rateLabel: "Lease rate (what businesses pay)", term: [24, 60, 12, 48],
     elBase: 0.8, elSlope: 0.07, sev: 0.45, cpr: 0.08, lifeK: 0.45, fee: 0.01, refi: 0.03, uSens: 0.3, liq: 1.3,
     st: [80, 8, 5, 1], sp: [70, 120, 210], xs: [1.5, 8], thr: [5, 4, 3, 2, 1.3], fairK: 1, inv: [1, 1, 1, 1.1],
@@ -188,7 +188,7 @@ export const ASSETS: AssetDef[] = [
     notes: [["Amortizing (how money comes in)", "Each lease pays a fixed amount every month for 2 to 5 years. If a business stops paying, the machine is taken back and sold."]],
   },
   {
-    id: "music", name: "Song royalties", pro: "royalty ABS", tk: "royalty", thing: "song royalty streams", who: "listeners and platforms", orig: "Starlight Music Catalog Co.", oRole: "the catalog owner", short: "Starlight", serv: "Starlight Royalty Collections", trust: "Starlight Royalty Trust 2026-1", recover: "licensing old songs",
+    id: "music", name: "Song royalties", pro: "royalty ABS", tk: "royalty", thing: "song royalty streams", who: "listeners and platforms", orig: "Concord", oRole: "the music catalog owner", short: "Concord", serv: "Concord (royalty administration)", trust: "Concord Music Royalties 2026-1", recover: "licensing old songs",
     n: [50, 1000, 25, 250], size: 220000, score: [600, 800, 5, 720], scoreLabel: "Catalog strength (higher = steadier hits)", rate: [6, 14, 0.25, 9.5], rateLabel: "Royalty yield (yearly royalties as % of value)", term: [60, 180, 12, 120],
     elBase: 2.0, elSlope: 0.1, sev: 0.6, cpr: 0.02, lifeK: 0.45, fee: 0.02, refi: 0, uSens: 0.05, liq: 3,
     st: [70, 12, 8, 2], sp: [200, 220, 360], xs: [1.5, 6], thr: [6, 5, 3.5, 2.5, 1.5], fairK: 1.4, inv: [0.9, 0.8, 0.6, 1.3],
@@ -205,7 +205,7 @@ export const ASSETS: AssetDef[] = [
     ],
   },
   {
-    id: "clo", name: "Business loans", pro: "CLO", tk: "clo", thing: "business loans", who: "mid-size companies", orig: "Northgate Capital", oRole: "the loan manager", short: "Northgate", serv: "Northgate Capital", trust: "Northgate CLO 2026-1", recover: "restructuring bankrupt companies",
+    id: "clo", name: "Business loans", pro: "CLO", tk: "clo", thing: "business loans", who: "mid-size companies", orig: "Carlyle", oRole: "the CLO manager", short: "Carlyle", serv: "Carlyle CLO Management", trust: "Carlyle US CLO 2026-1", recover: "restructuring bankrupt companies",
     n: [100, 400, 10, 200], size: 2500000, score: [600, 780, 5, 670], scoreLabel: "Average company credit strength", rate: [6, 13, 0.25, 9.5], rateLabel: "Loan rate (what companies pay)", term: [48, 96, 12, 84],
     elBase: 1.5, elSlope: 0.07, sev: 0.35, cpr: 0.2, lifeK: 0.5, fee: 0.005, refi: 0.05, uSens: 0.35, liq: 1.5,
     st: [62, 14, 8, 0], sp: [120, 220, 420], xs: [1.5, 6], thr: [5.5, 4.5, 3.5, 2.5, 1.5], fairK: 1.5, inv: [1, 1.3, 1.2, 1.2],
@@ -224,16 +224,18 @@ export const ASSETS: AssetDef[] = [
 ];
 
 // ---------- players ----------
-// name + plain-English role, used everywhere a fictional company is mentioned
+// Shown in the footer, the players sections and the PRFAQ.
+export const DISCLAIMER = "Real company names are used for realism only. Every deal, price, rating, event and figure in Bond Lab is fictional, and no affiliation with or endorsement by any company is implied.";
+// name + plain-English role, used everywhere a company is mentioned
 export const nr = (name: string, role: string): string => `${name} (${role})`;
 export const lr = (A: AssetDef): string => A.oRole ?? "the lender";
 // industry name first, everyday name in parentheses, e.g. "Auto ABS (car loans)"
 export const proName = (x: AssetDef): string => `${x.pro.charAt(0).toUpperCase() + x.pro.slice(1)} (${x.name.toLowerCase()})`;
 export const SPV_ROLE = "the special purpose vehicle";
-export const TRUSTEE = nr("Granite Trust Co.", "the trustee");
-export const DEALER = nr("Bluebridge Securities", "the underwriter/dealer");
-export const RATERS = "Polaris Ratings and Meridian Credit (the rating agencies)";
-export const MM = nr("Kestrel Markets", "the market maker");
+export const TRUSTEE = nr("U.S. Bank Trust Company", "the trustee");
+export const DEALER = nr("J.P. Morgan Securities", "the underwriter/dealer");
+export const RATERS = "S&P Global Ratings and Moody's (the rating agencies)";
+export const MM = nr("Goldman Sachs", "the market maker");
 export type Player = { id: string; name: string; role: string; title?: string; pro: string; does: string; like: string; paid: string; here: string; extra?: { label: string; value: ReactNode }[] };
 export const playersFor = (A: AssetDef): Player[] => [
   { id: "borrowers", name: A.who.charAt(0).toUpperCase() + A.who.slice(1), role: "the borrowers", pro: "Obligors (borrowers)", does: `The ${A.who} whose payments on ${A.thing} feed the whole deal.`, like: "The spring that feeds the river: every dollar starts with them.", paid: "They pay; they don't get paid.", here: `The ${A.thing} in your basket.` },
@@ -251,19 +253,19 @@ export const playersFor = (A: AssetDef): Player[] => [
     ],
   },
   { id: "servicer", name: A.serv, role: "the servicer", pro: "Servicer", does: `Collects payments from ${A.who}, chases late payers, and recovers money by ${A.recover}.`, like: "A landlord's property manager collecting rent.", paid: `A fee of ${pc(A.fee * 100, 2)} a year of the basket.`, here: "Reports what it collected each month in steps 7 and 8." },
-  { id: "trustee", name: "Granite Trust Co.", role: "the trustee", pro: "Trustee", does: "The referee. Makes sure the special purpose vehicle pays each tranche in the right order (the waterfall) and follows the rules.", like: "A referee holding the rulebook.", paid: "A small fixed fee.", here: "Runs the payment order in the storm test." },
-  { id: "arranger", name: "Bluebridge Securities", role: "the underwriter/dealer", pro: "Underwriter / arranger (dealer)", does: "Designs the tranches (floors) with the seller, calls investors, takes orders and sells the deal.", like: "A wedding planner coordinating every vendor.", paid: "A fee of about 0.3% of the deal.", here: "Runs your order book in step 6." },
-  { id: "ratings", name: "Polaris Ratings & Meridian Credit", role: "the rating agencies", pro: "Rating agencies", does: "Stress-test each tranche (floor) and give it a credit rating (grade) from AAA down.", like: "A crash-test lab handing out safety stars.", paid: "A fee from the deal for grading it.", here: "Grade your floors in step 5." },
-  { id: "investors", name: "Investors", role: "the buy-side", pro: "Buy-side: money managers, insurers, banks, hedge funds", does: "Buy the tranches (floors) that match how much risk they can stomach.", like: "Diners choosing a mild set menu or the spicy special.", paid: "Interest plus their money back, paid by the special purpose vehicle.", here: "Four mock investors bid in step 6: Evergreen Fund Managers, Bedrock Mutual Insurance, Harborline Bank Treasury and Quickstrike Capital (each an investor)." },
-  { id: "mm", name: "Kestrel Markets", role: "the market maker", pro: "Market maker (dealer desk)", does: "After the sale, always ready to buy or sell tranches so investors can trade.", like: "A used-car dealer: always open, buys a bit lower than it sells.", paid: "The gap between its buy and sell price.", here: "Quotes you prices on the trading floor in step 7." },
+  { id: "trustee", name: "U.S. Bank Trust Company", role: "the trustee", pro: "Trustee", does: "The referee. Makes sure the special purpose vehicle pays each tranche in the right order (the waterfall) and follows the rules.", like: "A referee holding the rulebook.", paid: "A small fixed fee.", here: "Runs the payment order in the storm test." },
+  { id: "arranger", name: "J.P. Morgan Securities", role: "the underwriter/dealer", pro: "Underwriter / arranger (dealer)", does: "Designs the tranches (floors) with the seller, calls investors, takes orders and sells the deal.", like: "A wedding planner coordinating every vendor.", paid: "A fee of about 0.3% of the deal.", here: "Runs your order book in step 6." },
+  { id: "ratings", name: "S&P Global Ratings & Moody's", role: "the rating agencies", pro: "Rating agencies", does: "Stress-test each tranche (floor) and give it a credit rating (grade) from AAA down.", like: "A crash-test lab handing out safety stars.", paid: "A fee from the deal for grading it.", here: "Grade your floors in step 5." },
+  { id: "investors", name: "Investors", role: "the buy-side", pro: "Buy-side: money managers, insurers, banks, hedge funds", does: "Buy the tranches (floors) that match how much risk they can stomach.", like: "Diners choosing a mild set menu or the spicy special.", paid: "Interest plus their money back, paid by the special purpose vehicle.", here: "Four investors place mock bids in step 6: BlackRock (a money manager), MetLife (an insurer), Wells Fargo Treasury (a bank) and Millennium Management (a hedge fund). Their bids are made up." },
+  { id: "mm", name: "Goldman Sachs", role: "the market maker", pro: "Market maker (dealer desk)", does: "After the sale, always ready to buy or sell tranches so investors can trade.", like: "A used-car dealer: always open, buys a bit lower than it sells.", paid: "The gap between its buy and sell price.", here: "Quotes you prices on the trading floor in step 7." },
 ];
 
-// ---------- investors (fictional) ----------
+// ---------- investors (real names for realism; bids are mock) ----------
 export const INV = [
-  { name: "Evergreen Fund Managers", type: "Money manager: invests people's savings", likes: ["AAA", "AA", "A", "BBB"], budget: 0.35, mult: 1.0 },
-  { name: "Bedrock Mutual Insurance", type: "Insurer: needs steady safe income for future claims", likes: ["AAA", "AA", "A"], budget: 0.3, mult: 0.95 },
-  { name: "Harborline Bank Treasury", type: "Bank: parks spare cash in the safest stuff", likes: ["AAA"], budget: 0.4, mult: 0.85 },
-  { name: "Quickstrike Capital", type: "Hedge fund: takes big risks for big rewards", likes: ["A", "BBB", "BB", "NR"], budget: 0.6, mult: 1.15 },
+  { name: "BlackRock", type: "Money manager: invests people's savings", likes: ["AAA", "AA", "A", "BBB"], budget: 0.35, mult: 1.0 },
+  { name: "MetLife", type: "Insurer: needs steady safe income for future claims", likes: ["AAA", "AA", "A"], budget: 0.3, mult: 0.95 },
+  { name: "Wells Fargo Treasury", type: "Bank: parks spare cash in the safest stuff", likes: ["AAA"], budget: 0.4, mult: 0.85 },
+  { name: "Millennium Management", type: "Hedge fund: takes big risks for big rewards", likes: ["A", "BBB", "BB", "NR"], budget: 0.6, mult: 1.15 },
 ];
 export const FAIR: Record<string, number> = { AAA: 65, AA: 90, A: 120, BBB: 180, BB: 350, NR: 650 };
 export const GR = ["AAA", "AA", "A", "BBB", "BB"];
@@ -402,6 +404,6 @@ export const GEN: Ev[] = [
   { title: "Benchmark rate up 0.25% (safe rate)", detail: "The central bank nudged rates up. New bonds pay more, so older ones drop in price, most for floors with a long wait.", w: 1.5, bench: 0.0025 },
   { title: "Benchmark rate down 0.25% (safe rate)", detail: "Rates were cut. Older bonds that pay more now look better, so their prices rise.", w: 1.5, bench: -0.0025 },
   { title: "Investors hungry for income", detail: "Lots of cash chasing bonds. Everyone accepts less extra pay, so prices rise.", w: 1, sp: [-6, -15, -25] },
-  { title: "Lender files for bankruptcy", detail: "", w: 0.6, bk: true, sp: [3, 10, 25] },
+  { title: "What-if: the lender goes bust (hypothetical)", detail: "", w: 0.6, bk: true, sp: [3, 10, 25] },
 ];
 

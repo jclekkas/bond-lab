@@ -2,13 +2,14 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 import {
   G, ASSETS, AW, LEVELS, STAGES, QUIZ, QUIZ_SPV, GEN, INV, FAIR, FL, FLS, BENCH,
-  rng, clamp, fm, pc, mo, nr, lr, proName, SPV_ROLE, TRUSTEE, DEALER, RATERS, MM, playersFor, grade, gname, makePool, runDeal, pv,
+  rng, clamp, fm, pc, mo, nr, lr, proName, SPV_ROLE, DISCLAIMER, TRUSTEE, DEALER, RATERS, MM, playersFor, grade, gname, makePool, runDeal, pv,
 } from "./engine";
 import type { AssetDef, Ev, Opt, RunRes, TrOut, MonthRow, Player, Quiz } from "./engine";
 import { Term, Panel, Metric, Slider, Seg, Switch, Rating, Tag, Props, Tbl, QuizBlock, Toasts, useTween } from "./ui";
 import type { Toast } from "./ui";
 import { useExchange, STAGES_X, SHORT_X } from "./exchange";
-import { PriceChart, Histogram, CapitalStack, Gauge, BalanceChart, FlowDiagram, Spark } from "./charts";
+import { PriceChart, Histogram, CapitalStack, Gauge, BalanceChart, FlowDiagram, Spark, OWN_COLOR } from "./charts";
+import type { OwnTone } from "./charts";
 import type { StackLayer } from "./charts";
 
 // ---------- trading state ----------
@@ -245,7 +246,7 @@ export default function Terminal() {
     s.bench = clamp(s.bench + (ev.bench ?? 0), 0.005, 0.09);
     s.unemp = clamp(s.unemp + (ev.unemp ?? 0), 3, 12);
     s.cprM = ev.cpr ? Math.min(4, s.cprM * ev.cpr) : 1 + (s.cprM - 1) * 0.7;
-    let detail = ev.bk ? `Your bonds keep paying. The ${A.thing} were sold in a true sale to ${nr(A.trust, SPV_ROLE)}, so ${A.short}'s creditors can't touch them. A backup servicer takes over collecting. Prices dip a little on the scary headline.` : ev.detail;
+    let detail = ev.bk ? `A simulated scenario, not real news: this has not happened. Your bonds keep paying. The ${A.thing} were sold in a true sale to ${nr(A.trust, SPV_ROLE)}, so ${A.short}'s creditors can't touch them. A backup servicer takes over collecting. Prices dip a little on the scary headline.` : ev.detail;
     if (ev.bench) {
       s.cprM = Math.min(4, s.cprM * (ev.bench < 0 ? 1 + A.refi * 2 : 1 / (1 + A.refi)));
       if (ev.bench < 0 && A.refi > 0.2) detail += " Homeowners start refinancing, so early payoffs jump.";
@@ -259,7 +260,7 @@ export default function Terminal() {
     s.cash = mk.cash + inc; s.income = mk.income + inc;
     const row = baseRun.months[s.m - 1];
     const extra = row ? ` ${nr(ev.bk ? "The backup servicer" : A.serv, "the servicer")} collected ${fm(row.collected)} from ${A.who} this month.` : "";
-    const title = ev.bk ? `${nr(A.orig, lr(A))} files for bankruptcy` : ev.title;
+    const title = ev.bk ? `What-if: ${nr(A.orig, lr(A))} goes bust (hypothetical stress event)` : ev.title;
     const px = priceMids(s);
     s.hist = [...mk.hist, { m: s.m, px }];
     const moveTone = px[2] - (mk.hist[mk.hist.length - 1]?.px[2] ?? px[2]);
@@ -373,6 +374,16 @@ export default function Terminal() {
   };
   const answer = (i: number): void => { setQuiz({ ...quiz, [stage]: i }); if (i === QUIZ[stage].ok) award("q" + stage); };
   const PL = playersFor(A);
+  // ---- ownership tracker (who legally owns the loans / the bonds at each moment) ----
+  const [own, setOwn] = useState(0);
+  const [ownPlay, setOwnPlay] = useState(false);
+  useEffect(() => {
+    if (!ownPlay) return;
+    const t = setInterval(() => setOwn((o) => { if (o >= 5) { setOwnPlay(false); return o; } return o + 1; }), 2600);
+    return () => clearInterval(t);
+  }, [ownPlay]);
+  // On phones the map scrolls sideways; start it centred on the special purpose vehicle.
+  useEffect(() => { if (stage !== 1) return; const el = document.querySelector<HTMLElement>(".flow-scroll"); if (el && el.scrollWidth > el.clientWidth) el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; }, [stage, aid, mtab]);
   const pl: Player = PL.find((p) => p.id === sel) ?? PL[0];
   const meet = (id: string) => { setSel(id); const ns = seen.includes(id) ? seen : [...seen, id]; setSeen(ns); if (ns.length >= 6) award("players"); };
   const howPays = A.rev ? `Revolving (refilling): for all but the last 12 months, repayments buy new ${A.thing}; then investors are paid back.` : A.defer ? `Deferment (payment pause): pays down monthly, but ${A.defer[0] * 100}% of borrowers pay nothing for the first ${A.defer[1]} months.` : "Amortizing (pays down a little every month until paid off).";
@@ -418,7 +429,7 @@ export default function Terminal() {
 
   // ---------- tour ----------
   const TOUR_D: { sel: string; title: string; body: string }[] = [
-    { sel: "", title: "Welcome to Bond Lab", body: "You'll build an asset-backed security (a bond paid by a basket of loans) from scratch, then sell it and trade it. Everything here is made up for practice. This 30-second tour shows you around." },
+    { sel: "", title: "Welcome to Bond Lab", body: "You'll build an asset-backed security (a bond paid by a basket of loans) from scratch, then sell it and trade it. Real company names appear for realism only; every deal, price and number is made up for practice, and no affiliation or endorsement is implied. This 30-second tour shows you around." },
     { sel: "mode", title: "Two modules", body: "Deal Lab (this one) builds and trades a deal. Exchange Builder lets you design a new marketplace for these bonds: who does what, who gets paid how. Switch here any time, or press X." },
     { sel: "topbar", title: "Top bar: your desk at a glance", body: "The deal you're building, the asset class, your mock cash, your P&L (profit or loss), your XP level and a live clock. Market month shows how much simulated time has passed." },
     { sel: "rail", title: "Steps of a real deal", body: "The 8 steps run from selecting the collateral pool (picking the basket of loans) to the stress test (storm test). A lock means an earlier step has to be finished first." },
@@ -505,6 +516,35 @@ export default function Terminal() {
       ) : <button className="btn primary" onClick={() => setStage(0)}>Back to start</button>}
     </div>
   );
+  const WHO = A.who.charAt(0).toUpperCase() + A.who.slice(1);
+  type OwnStep = { t: string; loan: string; bond: string[]; cash: string[]; fee: string[]; sold: string[]; hot: string[]; body: ReactNode };
+  const OWN: OwnStep[] = [
+    { t: "Borrower signs the loan", loan: "l", bond: [], cash: [], fee: [], sold: [], hot: ["l>d"],
+      body: <span>The {A.thing} are created. {WHO} sign a promissory note (an IOU) and owe the payments. {nr(A.orig, lr(A))} becomes the <b>owner of the loans</b>: the legal right to collect every payment. No bonds exist yet.</span> },
+    { t: "Lender (originator) owns the loans", loan: "l", bond: [], cash: ["s"], fee: [], sold: [], hot: ["d>s"],
+      body: <span>The <Term k="originator">originator (the lender that made the loans)</Term>, {nr(A.orig, lr(A))}, keeps thousands of {A.thing} on its own books (its balance sheet). If it went bust now, its creditors could claim them. {nr(A.serv, "the servicer")} already collects the monthly payments.</span> },
+    { t: "True sale to the SPV", loan: "t", bond: [], cash: ["s"], fee: [], sold: ["l"], hot: ["l>t", "t>l"],
+      body: <span>In a <Term k="truesale">true sale (a real, final sale)</Term>, {A.short} sells the {A.thing} to {nr(A.trust, SPV_ROLE)} and gets cash. Legal ownership moves for good: it is a sale, not a loan backed by the {A.thing}.</span> },
+    { t: "SPV / trust owns the loans", loan: "t", bond: [], cash: ["s", "g"], fee: [], sold: ["l"], hot: ["g>t", "s>t"],
+      body: <span>The <Term k="spv">special purpose vehicle, SPV (walled-off box)</Term>, {A.trust}, now <b>owns the loans</b>. {A.short}&apos;s creditors can&apos;t touch them. {TRUSTEE} holds everything on behalf of the future bondholders and enforces the rules (the referee). It never owns the loans for itself.</span> },
+    { t: "Investors own the bonds", loan: "t", bond: ["i"], cash: ["s", "g"], fee: ["u", "r", "s", "g"], sold: ["l"], hot: ["t>u", "u>i", "i>t", "t>i"],
+      body: <span>The SPV issues bonds, sold by {DEALER} and graded by {RATERS}. Investors (the buy-side) now <b>own the bonds</b>: claims on the cash flows, not the {A.thing} themselves. Every month {nr(A.serv, "the servicer")} collects from {A.who} and passes the cash on; it earns a fee but <b>never owns</b> the {A.thing}.</span> },
+    { t: "Bonds trade later; the loans stay put", loan: "t", bond: ["i", "m"], cash: ["s", "g"], fee: ["s", "g"], sold: ["l"], hot: ["i>m", "t>i"],
+      body: <span>In the <Term k="secondary">secondary market (trading afterwards)</Term> investors can sell bonds to {MM}. Whoever holds a bond on payment day gets its share. The bonds change hands; the {A.thing} stay in {A.trust} the whole time.</span> },
+  ];
+  const OS = OWN[own];
+  const ownTags = (id: string): { t: string; tone: OwnTone }[] => {
+    const t: { t: string; tone: OwnTone }[] = [];
+    if (id === "d") t.push({ t: "OWE THE PAYMENTS", tone: "sold" });
+    if (OS.loan === id) t.push({ t: "OWNS THE LOANS", tone: "loan" });
+    if (OS.bond.includes(id)) t.push({ t: "OWNS THE BONDS", tone: "bond" });
+    if (OS.sold.includes(id)) t.push({ t: "SOLD ITS LOANS", tone: "sold" });
+    if (OS.cash.includes(id)) t.push({ t: id === "g" ? "HOLDS FOR INVESTORS" : "HANDLES CASH", tone: "cash" });
+    if (OS.fee.includes(id)) t.push({ t: "FEE", tone: "fee" });
+    return t;
+  };
+  const ownRing = (id: string): OwnTone | undefined => (OS.loan === id ? "loan" : OS.bond.includes(id) ? "bond" : undefined);
+  const nodeName: Record<string, string> = { l: nr(A.orig, lr(A)), t: nr(A.trust, SPV_ROLE), i: "Investors (the buy-side)", m: MM };
   const nodeOf: Record<string, string> = { borrowers: "d", lender: "l", servicer: "s", trust: "t", trustee: "g", ratings: "r", arranger: "u", investors: "i", mm: "m" };
   const playerOf: Record<string, string> = { d: "borrowers", l: "lender", s: "servicer", t: "trust", g: "trustee", r: "ratings", u: "arranger", i: "investors", m: "mm" };
 
@@ -544,7 +584,7 @@ export default function Terminal() {
           ]} />
         </Panel>
         <Panel title="Good to know">
-          {A.notes.map((nt) => <div key={nt[0]} className="rows"><div className="rw"><div className="tt">{nt[0]}</div><div className="dd">{nt[1]}</div></div></div>)}
+          <div className="rows">{A.notes.map((nt) => <div key={nt[0]} className="rw"><div className="tt">{nt[0]}</div><div className="dd">{nt[1]}</div></div>)}</div>
           {A.guar && <div style={{ marginTop: 10 }}><Switch label={A.guar} value={guar} onChange={setGuar} /></div>}
           {A.guar && <div className="p dim" style={{ marginTop: 6 }}>{guar ? `On: a government-backed promise covers about 97% of each loss. Expected losses drop to ${pc(el, 2)}. Watch every tranche become AAA in step 5.` : "Off: no guarantee, so tranches and cushions do all the protecting."}</div>}
         </Panel>
@@ -569,19 +609,35 @@ export default function Terminal() {
           ].map((s, i) => <div key={i} className="step"><div className="sn">STEP {i + 1}</div><div className="stt">{s.t}</div><div className="sd">{s.d}</div></div>)}
         </div>
       </Panel>
-      <div className="grid g-wide-left">
-        <Panel title="Market participants: follow the money" right={<span className="dim">click a box</span>}>
-          <FlowDiagram sel={nodeOf[sel]} onPick={(id) => meet(playerOf[id] ?? "trust")} nodes={[
+      <Panel title="Market participants: follow the money" right={<span className="dim">click a box</span>}>
+          <div className="own-now" aria-live="polite">
+            <div className="own-cell"><span className="k"><i style={{ background: OWN_COLOR.loan }} />Current owner of the loans</span><b>{nodeName[OS.loan]}</b></div>
+            <div className="own-cell"><span className="k"><i style={{ background: OWN_COLOR.bond }} />Current owner of the bonds</span><b>{OS.bond.length ? OS.bond.map((b) => nodeName[b]).join(" and ") : "No bonds yet"}</b></div>
+          </div>
+          <div className="own-steps" role="group" aria-label="Ownership timeline">
+            {OWN.map((o, i) => <button key={o.t} className={"own-step" + (i === own ? " on" : i < own ? " done" : "")} onClick={() => { setOwnPlay(false); setOwn(i); }} aria-label={`Ownership step ${i + 1}: ${o.t}`} aria-current={i === own ? "step" : undefined}><span className="n">{i + 1}</span><span className="tt">{o.t}</span></button>)}
+          </div>
+          <div className="own-explain">
+            <div className="own-eh"><b>Step {own + 1} of {OWN.length}: {OS.t}</b>
+              <span className="own-ctl">
+                <button className="btn sm" disabled={own === 0} onClick={() => { setOwnPlay(false); setOwn(own - 1); }} aria-label="Previous ownership step">{"\u2190"}</button>
+                <button className="btn sm" onClick={() => { if (own >= OWN.length - 1) setOwn(0); setOwnPlay(!ownPlay); }}>{ownPlay ? "Pause" : "\u25b6 Play"}</button>
+                <button className="btn sm" disabled={own === OWN.length - 1} onClick={() => { setOwnPlay(false); setOwn(own + 1); }} aria-label="Next ownership step">{"\u2192"}</button>
+              </span>
+            </div>
+            <div className="own-body">{OS.body}</div>
+          </div>
+          <div className="flow-scroll"><FlowDiagram sel={nodeOf[sel]} onPick={(id) => meet(playerOf[id] ?? "trust")} nodes={([
             { id: "d", label: PL[0].name, detail: "the borrowers", kind: "person" },
             { id: "l", label: A.orig, detail: lr(A) },
             { id: "s", label: A.serv, detail: "the servicer" },
             { id: "t", label: A.trust, detail: "special purpose vehicle (SPV)", kind: "key" },
-            { id: "g", label: "Granite Trust Co.", detail: "the trustee" },
-            { id: "r", label: "Polaris & Meridian", detail: "the rating agencies" },
-            { id: "u", label: "Bluebridge Securities", detail: "the underwriter/dealer" },
+            { id: "g", label: "U.S. Bank Trust Company", detail: "the trustee" },
+            { id: "r", label: "S&P & Moody's", detail: "the rating agencies" },
+            { id: "u", label: "J.P. Morgan Securities", detail: "the underwriter/dealer" },
             { id: "i", label: "Investors", detail: "the buy-side", kind: "person" },
-            { id: "m", label: "Kestrel Markets", detail: "the market maker" },
-          ]} edges={[
+            { id: "m", label: "Goldman Sachs", detail: "the market maker" },
+          ] as { id: string; label: string; detail?: string; kind?: "box" | "key" | "person" }[]).map((n) => ({ ...n, tags: ownTags(n.id), ring: ownRing(n.id) }))} edges={[
             { from: "l", to: "d", label: "lends" },
             { from: "d", to: "s", label: "monthly payments" },
             { from: "s", to: "t", label: "passes the cash" },
@@ -594,9 +650,18 @@ export default function Terminal() {
             { from: "g", to: "t", label: "watches the rules", dashed: true },
             { from: "r", to: "u", label: "rates the tranches", dashed: true },
             { from: "i", to: "m", label: "trade later" },
-          ]} />
+          ].map((e) => ({ ...e, hot: OS.hot.includes(e.from + ">" + e.to) }))} /></div>
+          <div className="m-only dim" style={{ fontSize: 11.5, marginTop: 4 }}>Swipe sideways to see the whole map.</div>
+          <div className="own-legend" aria-label="Legend">
+            <span><i style={{ background: OWN_COLOR.loan }} /><b>Owns the loans</b> (legal owner of the IOUs)</span>
+            <span><i style={{ background: OWN_COLOR.bond }} /><b>Owns the bonds</b> (a claim on the cash, not the loans)</span>
+            <span><i style={{ background: OWN_COLOR.cash }} /><b>Handles cash, never owns</b> (servicer collects, trustee holds for investors)</span>
+            <span><i className="fee" /><b>Gets paid a fee</b> (paid for a job, owns nothing)</span>
+            <span><i className="hotline" /><b>Moving now</b> in this step</span>
+          </div>
           <div className="p dim" style={{ marginTop: 8 }}>The highlighted box, {A.trust}, is the <Term k="spv">special purpose vehicle, SPV (walled-off box)</Term>. The loans go in, bonds come out, and every month borrowers' money flows through it to investors. Investors' cash for the bonds flows back through it to {nr(A.short, lr(A))}.</div>
-        </Panel>
+      </Panel>
+      <div style={{ marginTop: 12 }}>
         <Panel title={pl.title ?? nr(pl.name, pl.role)} right={<span className="dim">{seen.length}/{PL.length} met</span>}>
           <div className="chips" style={{ marginBottom: 12 }}>
             {PL.map((p) => <button key={p.id} className={"chip" + (p.id === sel ? " on" : seen.includes(p.id) ? " ok" : "")} onClick={() => meet(p.id)}>{nr(p.name, p.role)}</button>)}
@@ -610,6 +675,7 @@ export default function Terminal() {
             ...(pl.extra ?? []),
             { label: "Industry title", value: pl.pro },
           ]} />
+          <div className="legal" style={{ marginTop: 10 }}>{DISCLAIMER}</div>
         </Panel>
       </div>
       <Panel title="Quick check: the special purpose vehicle, SPV (walled-off box)">
@@ -692,7 +758,7 @@ export default function Terminal() {
           <div className="p">{RATERS} run stress tests: storms several times worse than expected net loss ({pc(el, el < 1 ? 2 : 1)} {elText}). For {A.name.toLowerCase()}, a tranche whose credit enhancement survives {A.thr[0]}x gets AAA, {A.thr[1]}x AA, {A.thr[2]}x A, {A.thr[3]}x BBB, {A.thr[4]}x BB. Below that: not rated.</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
             <button className="btn primary lg" disabled={reviewing} onClick={requestRating}>{reviewing ? "Agencies reviewing\u2026" : graded ? "Re-check ratings (grades)" : "Request credit ratings (ask for grades)"}</button>
-            {reviewing && <span className="pinging dim">Polaris and Meridian are running their stress tests</span>}
+            {reviewing && <span className="pinging dim">S&P and Moody's (simulated) are running their stress tests</span>}
           </div>
           {graded && !reviewing && (
             <div style={{ marginTop: 14 }}>
@@ -913,7 +979,7 @@ export default function Terminal() {
   const screens = [S0, S1, S2, S3, S4, S5, S6, S7];
   const tape: { t: string; d: string; tone?: string }[] = mk.started
     ? [...[0, 1, 2].map((i) => { const tk = tick(i); return { t: `${A.tk.toUpperCase()} ${FLS[i].toUpperCase()} ${mids[i].toFixed(2)}`, d: (tk.ch >= 0 ? "\u25b2" : "\u25bc") + Math.abs(tk.ch).toFixed(2), tone: tk.cls }; }), { t: "BENCHMARK", d: pc(mk.bench * 100, 2) }, { t: "UNEMPLOYMENT", d: pc(mk.unemp) }, ...mk.news.slice(0, 5).map((n) => ({ t: `M${n.m}`, d: n.title, tone: n.tone === "bad" ? "down" : n.tone === "good" ? "up" : "" }))]
-    : [{ t: "BOND LAB", d: "Practice desk: every company, price and data point is made up" }, { t: "DEAL", d: A.trust }, { t: "ASSET", d: proName(A) }, { t: "POOL", d: fm(B) }, { t: "EXPECTED NET LOSS", d: pc(el, 2) }, { t: "SENIOR", d: `${a}% \u00b7 ${gname(grades[0])}` }, { t: "STATUS", d: closed ? "Priced and closed" : graded ? "Rated, ready to price" : "Structuring" }];
+    : [{ t: "BOND LAB", d: "Practice desk: real names for realism only; every deal, price and data point is made up; no affiliation or endorsement" }, { t: "DEAL", d: A.trust }, { t: "ASSET", d: proName(A) }, { t: "POOL", d: fm(B) }, { t: "EXPECTED NET LOSS", d: pc(el, 2) }, { t: "SENIOR", d: `${a}% \u00b7 ${gname(grades[0])}` }, { t: "STATUS", d: closed ? "Priced and closed" : graded ? "Rated, ready to price" : "Structuring" }];
   const dictKeys = Object.keys(G).filter((k) => { const q = dictQ.trim().toLowerCase(); return !q || G[k].some((s) => s.toLowerCase().includes(q)); }).sort((x, y) => G[x][0].localeCompare(G[y][0]));
   const stageDone = (i: number) => i < maxSeen || (i === 4 && graded) || (i === 5 && closed);
   const hd = STAGE_SHORT[stage];
@@ -958,7 +1024,7 @@ export default function Terminal() {
     <Tbl right={[3, 4]} cols={["Placed", "Side", "Tranche (floor)", "Size", "Limit", ""]} rows={mk.orders.map((o) => [`M${o.m}`, <span key={o.id} className={o.side === "Buy" ? "up" : "down"}>{o.side}</span>, FL[o.fl], `$${o.size}M`, o.limit.toFixed(2), <button key={"c" + o.id} className="btn sm" onClick={() => { setMk({ ...mk, orders: mk.orders.filter((x) => x.id !== o.id) }); toast("Order cancelled"); }}>Cancel</button>])} />
   );
   const newsTab = mk.news.length === 0 ? <div className="empty">The news wire starts when secondary trading opens (step 7).</div> : (
-    <div className="rows" style={{ padding: "0 12px" }}>{mk.news.map((n, i) => <div key={i} className="rw"><div className="ld num">M{n.m}</div><div><div className={"tt " + (n.tone === "bad" ? "down" : n.tone === "good" ? "up" : "")}>{n.title}</div><div className="dd">{n.detail}</div></div></div>)}</div>
+    <div className="rows" style={{ padding: "0 12px" }}>{mk.news.map((n, i) => <div key={i} className="rw rw-lead"><div className="ld num">M{n.m}</div><div><div className={"tt " + (n.tone === "bad" ? "down" : n.tone === "good" ? "up" : "")}>{n.title}</div><div className="dd">{n.detail}</div></div></div>)}</div>
   );
 
   const tc = tour >= 0 ? TOUR[tour] : null;
@@ -1020,7 +1086,7 @@ export default function Terminal() {
       <main className="main" data-tour="workspace" id="workspace">
         {isX ? <>
         <div className="ws-head">
-          <div><div className="crumb">Exchange Builder {"\u00b7"} step {X.stage + 1} of {STAGES_X.length} {"\u00b7"} synthetic model, fictional firms</div><h1>{STAGES_X[X.stage]}</h1></div>
+          <div><div className="crumb">Exchange Builder {"\u00b7"} step {X.stage + 1} of {STAGES_X.length} {"\u00b7"} synthetic model, real names for realism, fictional exchange</div><h1>{STAGES_X[X.stage]}</h1></div>
           <div style={{ display: "flex", gap: 6 }}>
             <button className="btn sm" disabled={X.stage === 0} onClick={() => X.setStage(X.stage - 1)} aria-label="Previous step">{"\u2190"} <span className="kbd">[</span></button>
             <button className="btn sm" disabled={X.stage === STAGES_X.length - 1} onClick={() => X.setStage(X.stage + 1)} aria-label="Next step"><span className="kbd">]</span> {"\u2192"}</button>
@@ -1046,6 +1112,7 @@ export default function Terminal() {
         {moveOn}
         <div className="m-only" style={{ marginTop: 16 }}><Panel title={`Quick check: step ${stage + 1}`}><QuizBlock q={QUIZ[stage]} ans={quiz[stage]} onAns={answer} /></Panel></div>
         </>}
+        <footer className="legal app-legal">{DISCLAIMER}{isX ? " Lighthouse ABS Exchange is a fictional venue." : ""}</footer>
       </main>
 
       {coachPanel}

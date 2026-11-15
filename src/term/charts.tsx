@@ -224,8 +224,19 @@ export function BalanceChart({ series, months, at, onSeek }: { series: number[][
 }
 
 // ---------- money-flow diagram (clickable nodes) ----------
-type DNode = { id: string; label: string; detail?: string; kind?: "box" | "key" | "person" };
-type DEdge = { from: string; to: string; label?: string; dashed?: boolean };
+export type OwnTone = "loan" | "bond" | "cash" | "fee" | "sold";
+export const OWN_COLOR: Record<OwnTone, string> = { loan: "var(--up)", bond: "var(--accent)", cash: "var(--amber)", fee: "var(--text3)", sold: "var(--text3)" };
+type DNode = { id: string; label: string; detail?: string; kind?: "box" | "key" | "person"; tags?: { t: string; tone: OwnTone }[]; ring?: OwnTone };
+type DEdge = { from: string; to: string; label?: string; dashed?: boolean; hot?: boolean };
+// Split a long name over two lines at a word boundary so it never spills out of its box.
+const wrap2 = (t: string, max = 25): string[] => {
+  if (t.length <= max) return [t];
+  const w = t.split(" "); let a = "";
+  while (w.length && (a + " " + w[0]).trim().length <= max) a = (a + " " + w.shift()).trim();
+  if (!a) a = w.shift() ?? "";
+  const b = w.join(" ");
+  return [a, b.length > max + 3 ? b.slice(0, max + 1) + "\u2026" : b];
+};
 export function FlowDiagram({ nodes, edges, sel, onPick }: { nodes: DNode[]; edges: DEdge[]; sel?: string; onPick?: (id: string) => void }) {
   const solid = edges.filter((e) => !e.dashed);
   const fwd: DEdge[] = [];
@@ -248,7 +259,7 @@ export function FlowDiagram({ nodes, edges, sel, onPick }: { nodes: DNode[]; edg
   const maxR = Math.max(...Object.values(rank));
   const layers: DNode[][] = Array.from({ length: maxR + 1 }, () => []);
   nodes.forEach((n) => layers[rank[n.id]].push(n));
-  const NW = 200, NH = 54, GX = 80, GY = 56;
+  const NW = 200, NH = 64, GX = 80, GY = 72;
   const maxL = Math.max(...layers.map((L) => L.length));
   const pos: Record<string, { x: number; y: number }> = {};
   layers.forEach((L, r) => L.forEach((n, i) => { const off = (maxL - L.length) / 2; pos[n.id] = { x: 250 + (i + off) * (NW + GX), y: 16 + r * (NH + GY) }; }));
@@ -265,7 +276,7 @@ export function FlowDiagram({ nodes, edges, sel, onPick }: { nodes: DNode[]; edg
       {edges.map((e, i) => {
         const twin = edges.some((x) => x.from === e.to && x.to === e.from);
         const span = Math.abs(rank[e.to] - rank[e.from]);
-        const st = { stroke: e.dashed ? "var(--text3)" : "var(--accent)", strokeWidth: e.dashed ? 1.2 : 1.6, fill: "none", opacity: e.dashed ? 0.9 : 0.75 };
+        const st = { stroke: e.hot ? "var(--amber)" : e.dashed ? "var(--text3)" : "var(--accent)", strokeWidth: e.hot ? 2.6 : e.dashed ? 1.2 : 1.6, fill: "none", opacity: e.hot ? 1 : e.dashed ? 0.9 : 0.75 };
         const cls = e.dashed ? "" : "flow-line";
         const lbl = (x: number, y: number, anchor: "middle" | "end") => e.label ? (
           <g>
@@ -289,9 +300,10 @@ export function FlowDiagram({ nodes, edges, sel, onPick }: { nodes: DNode[]; edg
         const p = pos[n.id], person = n.kind === "person", key = n.kind === "key", on = sel === n.id;
         return (
           <g key={n.id} onClick={() => onPick?.(n.id)} style={{ cursor: onPick ? "pointer" : "default" }} tabIndex={onPick ? 0 : undefined} role={onPick ? "button" : undefined} aria-label={`${n.label}, ${n.detail ?? ""}`} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onPick?.(n.id); }}>
-            <rect x={p.x} y={p.y} width={NW} height={NH} rx={person ? NH / 2 : 10} style={{ fill: key ? "var(--accent-bg)" : "var(--panel2)", stroke: on ? "var(--amber)" : person || key ? "var(--accent)" : "var(--border2)", transition: "stroke .2s" }} strokeWidth={on ? 2.6 : key ? 2.2 : 1.2} />
-            <text x={p.x + NW / 2} y={p.y + (n.detail ? 23 : 31)} textAnchor="middle" fontSize={12.5} fontWeight={650} style={{ fill: "var(--text)" }}>{n.label}</text>
-            {n.detail && <text x={p.x + NW / 2} y={p.y + 40} textAnchor="middle" fontSize={11} style={{ fill: key ? "var(--accent)" : "var(--text3)" }}>{n.detail}</text>}
+            {n.ring && <rect x={p.x - 5} y={p.y - 5} width={NW + 10} height={NH + 10} rx={(person ? NH / 2 : 10) + 5} style={{ fill: "none", stroke: OWN_COLOR[n.ring], opacity: 0.55 }} strokeWidth={2} strokeDasharray="4 3" />}
+            <rect x={p.x} y={p.y} width={NW} height={NH} rx={person ? NH / 2 : 10} style={{ fill: key ? "var(--accent-bg)" : "var(--panel2)", stroke: on ? "var(--amber)" : n.ring ? OWN_COLOR[n.ring] : person || key ? "var(--accent)" : "var(--border2)", transition: "stroke .2s" }} strokeWidth={on || n.ring ? 2.6 : key ? 2.2 : 1.2} />
+            {(() => { const L = wrap2(n.label); const y0 = p.y + (L.length > 1 ? (n.detail ? 24 : 30) : n.detail ? 31 : 38); return <>{L.map((t, k) => <text key={k} x={p.x + NW / 2} y={y0 + k * 14} textAnchor="middle" fontSize={12.5} fontWeight={650} style={{ fill: "var(--text)" }}>{t}</text>)}{n.detail && <text x={p.x + NW / 2} y={y0 + (L.length - 1) * 14 + 16} textAnchor="middle" fontSize={11} style={{ fill: key ? "var(--accent)" : "var(--text3)" }}>{n.detail}</text>}</>; })()}
+            {(() => { let x = p.x + 10; return (n.tags ?? []).map((tg) => { const w = tg.t.length * 6.1 + 12; const el = <g key={tg.t} className="own-tag"><rect x={x} y={p.y - 8} width={w} height={16} rx={8} style={{ fill: tg.tone === "sold" ? "var(--panel2)" : tg.tone === "fee" ? "var(--panel3)" : OWN_COLOR[tg.tone], stroke: tg.tone === "sold" || tg.tone === "fee" ? "var(--text3)" : "none" }} /><text x={x + w / 2} y={p.y + 3.5} textAnchor="middle" fontSize={9.5} fontWeight={700} letterSpacing={0.3} style={{ fill: tg.tone === "sold" || tg.tone === "fee" ? "var(--text)" : "#0b0f14" }}>{tg.t}</text></g>; x += w + 5; return el; }); })()}
           </g>
         );
       })}

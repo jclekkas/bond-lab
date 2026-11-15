@@ -4,7 +4,7 @@ An interactive, beginner-friendly simulator for building and trading **mock asse
 
 **Live:** https://jclekkas.github.io/bond-lab/
 
-> All companies, prices and data are made up (synthetic, generated deterministically in code). This is a learning tool, not financial advice or a real trading platform.
+> Real company names (lenders, servicers, trustees, rating agencies, banks, investors, market infrastructure) are used for realism only, to show who plays each role. Every deal, price, rating, event and figure is made up (synthetic, generated deterministically in code), and no affiliation with or endorsement by any company is implied. Stress events such as a lender going bust are hypothetical what-ifs, not news. This is a learning tool, not financial advice or a real trading platform.
 
 ## What you do
 
@@ -25,6 +25,10 @@ A dark trading-terminal layout (light mode too): top bar with the deal, asset cl
 
 Keyboard: `?` help, `Esc` close, `[` `]` previous/next step, `1`–`8` jump, `T` theme, `C` coach panel, `D` dictionary, `G` replay the tour, `X` switch between Deal Lab and Exchange Builder (where `1`–`8` jump); on the trading floor `B` buy, `S` sell, `N` next month, `P` auto-advance; in the stress test `P` play/pause, `N` step.
 
+### Who owns what
+
+Step 2 (Market participants: follow the money) has an ownership tracker: a six-step timeline (borrower signs the loan, the lender owns it, true sale, the SPV owns the loans, investors own the bonds, bonds trade later) with live "Current owner of the loans" and "Current owner of the bonds" cards, tags on the map (owns the loans, owns the bonds, handles cash but never owns, gets paid a fee) and a legend.
+
 ## Exchange Builder: design a new ABS exchange
 
 A second module, opened with the **Deal Lab / Exchange Builder** switch in the top bar (or the `X` key). It walks through what a new marketplace for asset-backed securities would need, in eight steps:
@@ -38,7 +42,7 @@ A second module, opened with the **Deal Lab / Exchange Builder** switch in the t
 7. **Pitch scorecard**: grades for liquidity, fairness, safety, profitability and adoption, with feedback and badges (Market Architect, Cold Start Solver and others).
 8. **PRFAQ** (press release + FAQ): a 5-page plain-English write-up of a hypothetical exchange, Lighthouse ABS Exchange: a future press release, a customer FAQ and an internal FAQ. Read it in the app (works offline), open a print-friendly view, or download `bond-lab-prfaq.pdf`.
 
-It has its own coach, quizzes, dictionary entries and replayable tour (from the `?` overlay, `G`, or the Replay tour button while in Exchange Builder). The model is synthetic and simplified, for learning only, and every firm in it is fictional.
+It has its own coach, quizzes, dictionary entries and replayable tour (from the `?` overlay, `G`, or the Replay tour button while in Exchange Builder). The model is synthetic and simplified, for learning only. The exchange (Lighthouse ABS Exchange) is fictional; real firms are named only as examples of each role.
 
 ## Run locally
 
