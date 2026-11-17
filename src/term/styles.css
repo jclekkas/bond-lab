@@ -118,8 +118,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 18px; back
 .field label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; }
 .input { height: 32px; border-radius: 7px; border: 1px solid var(--border2); background: var(--panel2); padding: 0 10px; width: 100%; }
 .input:focus { border-color: var(--accent); outline: none; }
-.switch { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; }
-.switch .track { width: 34px; height: 20px; border-radius: 10px; background: var(--panel3); border: 1px solid var(--border2); position: relative; transition: background .2s; }
+.switch { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; text-align: left; }
+.switch .track { width: 34px; height: 20px; border-radius: 10px; background: var(--panel3); border: 1px solid var(--border2); position: relative; flex: none; transition: background .2s; }
 .switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text2); transition: transform .2s, background .2s; }
 .switch.on .track { background: var(--accent); border-color: var(--accent); }
 .switch.on .track::after { transform: translateX(14px); background: #fff; }

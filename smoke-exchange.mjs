@@ -46,7 +46,7 @@ await D.stage(2);
 for (const id of ["mm", "bd", "ins", "pen", "ccp", "cust", "dep", "data", "reg"]) await D.page.evaluate((id) => { const i = ["tech", "reg", "data", "rate", "svc", "iss", "bd", "mm", "hf", "am", "ins", "pen", "bank", "ccp", "cust", "dep"].indexOf(id); const g = document.querySelectorAll(".xnode")[i + 1]; g.dispatchEvent(new MouseEvent("click", { bubbles: true })); }, id);
 await sleep(100);
 notes.push("S2 role card: " + (await D.page.evaluate(() => [...document.querySelectorAll(".main .panel-h h2")].map((h) => h.textContent).slice(1, 3).join(" | "))));
-notes.push("S2 explored: " + (await D.page.evaluate(() => document.querySelector(".main").innerText.match(/(\d+)\/17 explored/)?.[0])));
+notes.push("S2 explored: " + (await D.page.evaluate(() => document.querySelector(".main").innerText.match(/\d+\/\d+ explored/)?.[0])));
 await D.click("Who pays whom", ".seg button"); await D.click("Rebates", ".chip");
 notes.push("S2 flows drawn: " + (await D.page.evaluate(() => document.querySelectorAll(".xmap path.flow-line").length)) + " labels " + (await D.page.evaluate(() => document.querySelectorAll(".xflow-lbl").length)));
 await D.click("All money flows", ".chip");

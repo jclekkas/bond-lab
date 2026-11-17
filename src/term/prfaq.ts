@@ -48,6 +48,8 @@ const PAGE23 = String.raw`
 <p>The bonds keep paying. The loans were sold into a special purpose vehicle, SPV (a separate legal box that only holds the loans), with a name like Navient Student Loan Trust 2026-1 (the SPV), so the lender&rsquo;s creditors cannot touch them. A trustee (the independent referee), a role banks such as U.S. Bank, BNY and Wilmington Trust play, watches over the deal for bondholders, and a backup servicer can take over collecting payments if the original servicer (the bill collector) stops working.</p>
 <h3>What data do I get?</h3>
 <p>Every listed bond comes with standard deal documents and monthly loan-level data: how many borrowers are paying on time, how many are late, and how much has been lost. An independent pricing vendor checks the files and Lighthouse publishes an end-of-day price for every bond, so holders can value what they own even on days it does not trade.</p>
+<h3>How will I know if a deal&rsquo;s loans are getting riskier?</h3>
+<p>Every listed deal gets a standard portfolio risk score (the portfolio report card), refreshed monthly from loan-level data plus depersonalized consumer credit data, and shown to all members. It comes from a neutral risk analytics and credit data provider, a combined role that is hypothetical here; today firms such as FICO and VantageScore (score makers), Equifax, Experian and TransUnion (credit bureaus), and dv01 and Intex (loan-level analytics) each do part of it. Unlike a rating, graded mostly at issuance and paid by the issuer, the score is refreshed for everyone, so investors price with less guesswork and issuers can borrow more cheaply.</p>
 <h3>Will a big trade move the price against me?</h3>
 <p>That risk is called information leakage (others learning your plans). To limit it, large trades can use a request for quote to a few chosen dealers, or a periodic auction where orders are collected and matched at one price. Order sizes on the board are partly hidden.</p>
 <h3>What stops people from gaming the market?</h3>
@@ -78,6 +80,7 @@ const PAGE45 = String.raw`
 <tr><td>Money managers and hedge funds, e.g. BlackRock, PIMCO</td><td>Trading profits</td><td>Transparency and speed</td><td>Position limits</td></tr>
 <tr><td>Issuers, e.g. Ally Financial, Capital One, Navient</td><td>Cash from selling the deal</td><td>Cheaper funding</td><td>Extra data and listing costs</td></tr>
 <tr><td>Clearing house, e.g. FICC (part of DTCC)</td><td>Clearing fees</td><td>Well-funded, careful members</td><td>A big member defaulting</td></tr>
+<tr><td>Risk analytics provider (portfolio report card), e.g. roles of FICO, TransUnion, dv01</td><td>Exchange or member subscriptions; issuer fees are a design choice</td><td>To become the standard score</td><td>Issuer-pays bias; credit-data privacy rules (FCRA)</td></tr>
 <tr><td>Regulators: SEC and FINRA</td><td>Public budget</td><td>Fair, stable markets</td><td>Crashes and manipulation</td></tr>
 </tbody></table>
 <p class="pf-note">Names are examples of each type of firm. The incentives and worries describe the role in general, not the views or plans of any named company.</p>
@@ -101,7 +104,7 @@ const PAGE45 = String.raw`
 <table class="pf-tbl pf-small"><thead><tr><th>Scenario</th><th>What happens</th><th>Safeguard</th></tr></thead><tbody>
 <tr><td>Fire sale (forced selling)</td><td>A fund must sell fast; prices fall</td><td>Auctions, circuit breakers</td></tr>
 <tr><td>Flash crash (runaway algorithm)</td><td>Prices collapse in seconds</td><td>Circuit breakers, order limits</td></tr>
-<tr><td>Bad data (servicer misreports)</td><td>Bonds are mispriced</td><td>Independent data audits</td></tr>
+<tr><td>Bad data (servicer misreports)</td><td>Bonds are mispriced</td><td>Independent data audits, standard risk score</td></tr>
 <tr><td>Manipulation (spoofing)</td><td>Fake orders trick buyers</td><td>Market surveillance</td></tr>
 <tr><td>Member default (a big firm fails)</td><td>Unpaid trades</td><td>Clearing house and margin</td></tr>
 <tr><td>Liquidity vanishes (market makers leave)</td><td>Spreads blow out</td><td>Market-maker obligations</td></tr>
@@ -135,7 +138,7 @@ export const PRFAQ_PRINT_CSS = String.raw`
 @page { size: Letter; margin: 0.62in 0.7in 0.66in; }
 * { box-sizing: border-box; }
 html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-body { margin: 0; font: 10pt/1.42 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #1b2330; background: #fff; }
+body { margin: 0; font: 9.8pt/1.38 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #1b2330; background: #fff; }
 .pf-wrap { max-width: 7.1in; margin: 0 auto; }
 .pf-banner { font-size: 7.6pt; letter-spacing: .06em; text-transform: uppercase; color: #5a6578; border-bottom: 1px solid #d7dce4; padding-bottom: 6px; margin-bottom: 14px; }
 .pf-kicker { font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #1f6feb; margin-bottom: 4px; }
@@ -144,15 +147,15 @@ body { margin: 0; font: 10pt/1.42 -apple-system, "Segoe UI", Roboto, "Helvetica 
 .pf-h2 { font-size: 14pt; margin: 0 0 6px; padding-bottom: 5px; border-bottom: 2px solid #1f6feb; color: #0d1420; }
 .pf-h2 span { font-weight: 400; color: #5a6578; font-size: 10.5pt; }
 .pf-break { break-before: page; page-break-before: always; }
-h3 { font-size: 10.6pt; margin: 10px 0 2px; color: #0d1420; break-after: avoid; }
+h3 { font-size: 10.4pt; margin: 8px 0 2px; color: #0d1420; break-after: avoid; }
 p { margin: 0 0 6px; }
 ul { margin: 2px 0 6px; padding-left: 18px; } li { margin: 0 0 2px; }
 blockquote { margin: 5px 0 6px; padding: 4px 10px; border-left: 3px solid #1f6feb; background: #f2f6fc; color: #233044; }
 .pf-tbl { width: 100%; border-collapse: collapse; margin: 4px 0 6px; font-size: 9pt; break-inside: avoid; }
 .pf-tbl th { text-align: left; background: #eef2f7; color: #354156; font-weight: 650; padding: 4px 6px; border-bottom: 1px solid #cdd4de; }
-.pf-tbl td { padding: 3.5px 6px; border-bottom: 1px solid #e3e7ee; vertical-align: top; }
+.pf-tbl td { padding: 2.5px 6px; border-bottom: 1px solid #e3e7ee; vertical-align: top; }
 .pf-tbl td:first-child { font-weight: 600; color: #233044; }
-.pf-small { font-size: 8.5pt; }
+.pf-small { font-size: 8.2pt; }
 .pf-box { background: #f5f7fa; border: 1px solid #dfe4eb; border-radius: 6px; padding: 7px 10px; margin: 4px 0 6px; break-inside: avoid; }
 .pf-note { font-size: 8.4pt; color: #5a6578; }
 .pf-disc { font-size: 8pt; color: #4a5568; background: #fff8e6; border: 1px solid #f0d58c; border-radius: 5px; padding: 5px 8px; margin: -6px 0 10px; }

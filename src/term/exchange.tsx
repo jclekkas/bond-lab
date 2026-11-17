@@ -9,6 +9,9 @@ import { PRFAQ_BODY, PRFAQ_PDF, prfaqDocument } from "./prfaq";
 
 // ---------- dictionary + awards ----------
 Object.assign(G, {
+  riskscore: ["Standard portfolio risk score", "the portfolio report card", "One independent, regularly refreshed (for example monthly) score and set of risk measures for every listed deal, built from loan-level data plus refreshed, depersonalized consumer credit data, and visible to every member. Like a credit score, but for a whole pool of loans."],
+  fcra: ["Fair Credit Reporting Act, FCRA", "the credit-report privacy law", "The US law that controls who may use consumer credit reports and why (a permissible purpose). Data used for portfolio scores must be depersonalized (names and identifiers removed) or used only for a permitted purpose."],
+  depersonalized: ["Depersonalized data", "names and IDs removed", "Credit data stripped of names, addresses and account numbers so it describes borrowers' behavior without identifying anyone."],
   prfaq: ["PRFAQ (press release + FAQ)", "the launch announcement, written first", "A short future press release plus frequently asked questions, written before anything is built, so the team agrees on who the product is for, why it matters and what is still unknown."],
   otc: ["Over-the-counter, OTC", "trading by phone with a dealer", "Trades negotiated privately between two parties, usually a client and a dealer, instead of on a public order book. Most ABS trade this way today."],
   trace: ["TRACE (post-trade reporting)", "the after-the-fact price log", "A US system where dealers report bond trades after they happen, so the public can see prices with a delay. It shows what happened, not what you could trade at now."],
@@ -56,8 +59,8 @@ export const STAGES_X = ["Over-the-counter vs. exchange (how it trades today)", 
 export const SHORT_X: [string, string][] = [["OTC vs. exchange", "how it trades today"], ["Marketplace map", "who does what"], ["Market design", "set the rules"], ["Incentives", "who wins, who loses"], ["Cold start", "getting first trades"], ["Risks & safeguards", "stress the design"], ["Pitch scorecard", "grade the design"], ["PRFAQ", "press release + FAQ"]];
 export const TERMS_X: string[][] = [
   ["otc", "brokerdealer", "rfq", "trace", "clob", "leakage"],
-  ["venue", "liqprov", "brokerdealer", "buyside", "ccp", "custodian", "depository", "datavendor"],
-  ["clob", "rfq", "auction", "hybrid", "makertaker", "pretrade", "posttrade", "mmobl", "loanlevel", "listing"],
+  ["venue", "liqprov", "brokerdealer", "buyside", "ccp", "custodian", "depository", "datavendor", "riskscore"],
+  ["clob", "rfq", "auction", "hybrid", "makertaker", "pretrade", "posttrade", "mmobl", "loanlevel", "riskscore", "fcra", "listing"],
   ["leakage", "pricedisc", "bestex", "rebate", "systemic"],
   ["coldstart", "anchor", "standard", "tba", "loanlevel"],
   ["firesale", "flashcrash", "spoofing", "circuit", "margin", "surveillance", "ccp"],
@@ -76,7 +79,7 @@ export const QUIZ_X: Quiz[] = [
 ];
 
 // ---------- marketplace roles: real firms named for realism; the exchange is fictional; incentives describe the role, not the firm ----------
-export type Role = { id: string; name: string; role: string; group: "core" | "sell" | "buy" | "post" | "info" | "rules"; does: string; needs: string; paid: string; incent: string; conflict: string };
+export type Role = { id: string; name: string; role: string; group: "core" | "sell" | "buy" | "post" | "info" | "rules"; does: string; needs: string; paid: string; incent: string; conflict: string; short?: string; extra?: { label: string; value: string }[] };
 export const ROLES: Role[] = [
   { id: "ex", name: "Lighthouse ABS Exchange", role: "the exchange / venue operator", group: "core", does: "Runs the marketplace: rulebook, membership, matching engine, listing, market data and surveillance.", needs: "Enough buyers and sellers in the same products, regulatory approval, reliable technology.", paid: "Trading fees, listing fees, market-data and connectivity fees, membership subscriptions.", incent: "Maximize volume and data sales; grow membership.", conflict: "It earns more when volume is high, so it can be tempted to favor fast or high-volume traders, and it also polices those same customers." },
   { id: "mm", name: "Citadel Securities", role: "a market maker / liquidity provider", group: "sell", does: "Posts bids and offers all day so others can trade immediately.", needs: "Fast data, low fees or rebates, ways to hedge, protection from trading against better-informed players.", paid: "Bid-ask spread plus exchange rebates or market-maker program payments.", incent: "Wants wide enough spreads and generous rebates; dislikes strict quoting obligations in stress.", conflict: "May pull quotes exactly when the market needs them most." },
@@ -94,9 +97,20 @@ export const ROLES: Role[] = [
   { id: "rate", name: "Moody's", role: "a rating agency", group: "info", does: "Grades each tranche's credit risk; ratings feed listing standards and investor rules.", needs: "Good loan-level data and performance history.", paid: "Fees from issuers for rating deals (issuer-pays).", incent: "More deals rated.", conflict: "Paid by the issuers it grades, which can tempt it to be generous." },
   { id: "svc", name: "U.S. Bank & Ally Servicing", role: "the trustee and the servicer (loan-level data)", group: "info", does: "Collect payments and report monthly performance on every loan in each deal.", needs: "A standard data format and clear disclosure rules.", paid: "Servicing and trustee fees from each deal's cash flows.", incent: "Low reporting cost.", conflict: "A servicer owned by the issuer may report bad news slowly." },
   { id: "reg", name: "SEC & FINRA", role: "the regulators", group: "rules", does: "Approve the venue's rules, register participants, watch for manipulation and protect investors.", needs: "Transparency, surveillance data, central clearing, fair access, investor protection.", paid: "Funded by registration and regulatory fees (and the public budget).", incent: "Fair, orderly markets and low systemic risk.", conflict: "Pressure from industry and politics; limited budgets." },
+  { id: "risk", name: "Risk analytics & credit data provider", short: "Risk analytics & data", role: "the portfolio report card", group: "info",
+    does: "Combines each deal's loan-level data with refreshed, depersonalized consumer credit data and publishes one standard risk score and set of risk measures for every listed deal, refreshed monthly, visible to all members.",
+    needs: "Monthly loan-level files from trustees and servicers, refreshed credit attributes from the credit bureaus, a common data format, and legal permission to use the data.",
+    paid: "Design choice. Options: a subscription paid by the exchange (bundled into membership), subscriptions from members, per-deal fees from issuers, and data licensing to pricing vendors, the clearing house and regulators. The exchange or members paying keeps it neutral; issuer-pays is cheaper for investors but repeats the rating-agency conflict.",
+    incent: "More deals covered and wider adoption: it wants its score to become the market standard everyone quotes.",
+    conflict: "If issuers pay, it may be tempted to score their deals kindly (the same issuer-pays problem as ratings). It handles sensitive consumer data, so it must follow the Fair Credit Reporting Act, FCRA (the credit-report privacy law): use depersonalized data or have a permissible purpose. Being the only standard also gives it monopoly power.",
+    extra: [
+      { label: "Role examples today", value: "FICO and VantageScore (the score makers: consumer credit scores now disclosed on agency mortgage bonds); Equifax, Experian and TransUnion (the credit bureaus, which sell depersonalized, refreshed credit data to investors); dv01 (standardized loan-level data and analytics for consumer ABS); Intex (deal cash-flow models). Each does part of this job today; none publishes an exchange-wide portfolio score, so the combined role here is hypothetical." },
+      { label: "Why it matters (the value chain)", value: "Investors price risk with less guesswork, so they demand a smaller uncertainty premium. That lowers issuers' funding costs, and cheaper funding can let lenders offer more credit to borrowers. Every member sees the same report card, which improves transparency for smaller investors too." },
+      { label: "How it differs from ratings and pricing", value: "A rating agency such as Moody's grades each tranche at issuance, is paid by the issuer, and updates mainly when something changes. A pricing vendor such as ICE Data Services estimates what bonds are worth and is paid by subscribers. The report card measures the loans' credit health, refreshed every month, for everyone." },
+    ] },
   { id: "tech", name: "Nasdaq Market Technology", role: "a technology provider", group: "core", does: "Builds the matching engine, connectivity, risk checks and data feeds.", needs: "Clear specs, long contracts, uptime targets.", paid: "Software licences, hosting and maintenance fees.", incent: "Long, sticky contracts.", conflict: "Vendor lock-in; may sell the same tech to rival venues." },
 ];
-export type Flow = { from: string; to: string; label: string; kind: "fee" | "spread" | "rebate" | "sub" | "custody" };
+export type Flow = { from: string; to: string; label: string; kind: "fee" | "spread" | "rebate" | "sub" | "custody" | "data"; bend?: number; lt?: number }; // bend/lt: optional curve and label-position overrides for crowded spots
 export const FLOWS: Flow[] = [
   { from: "hf", to: "ex", label: "trading fees", kind: "fee" }, { from: "am", to: "ex", label: "trading fees", kind: "fee" }, { from: "bd", to: "ex", label: "membership + fees", kind: "fee" },
   { from: "iss", to: "ex", label: "listing fees", kind: "fee" }, { from: "ex", to: "mm", label: "maker rebates", kind: "rebate" },
@@ -106,6 +120,9 @@ export const FLOWS: Flow[] = [
   { from: "bank", to: "data", label: "data subscriptions", kind: "sub" }, { from: "data", to: "ex", label: "market-data licence", kind: "sub" },
   { from: "iss", to: "rate", label: "rating fees (issuer-pays)", kind: "fee" }, { from: "iss", to: "svc", label: "servicing + trustee fees", kind: "fee" },
   { from: "ex", to: "tech", label: "technology licence", kind: "sub" }, { from: "ex", to: "reg", label: "regulatory fees", kind: "fee" },
+  { from: "ex", to: "risk", label: "score subscription", kind: "sub" }, { from: "iss", to: "risk", label: "per-deal fee (if issuer-pays)", kind: "fee" },
+  { from: "svc", to: "risk", label: "loan-level data", kind: "data" }, { from: "risk", to: "ex", label: "monthly risk scores", kind: "data" },
+  { from: "risk", to: "am", label: "scores for investors", kind: "data" }, { from: "risk", to: "ccp", label: "scores for margin", kind: "data", lt: 0.3 }, { from: "risk", to: "reg", label: "scores for supervision", kind: "data", bend: -64 },
 ];
 
 // ---------- design model (synthetic, deterministic) ----------
@@ -115,10 +132,11 @@ export type Design = {
   mmObl: boolean; mmInc: number; clearing: "ccp" | "bilateral"; data: "none" | "basic" | "loanlevel";
   listing: "loose" | "standard" | "strict"; access: "institutional" | "qualified" | "broad";
   cb: boolean; marginOn: boolean; surv: boolean; audit: boolean; limits: boolean;
+  riskScore: boolean;
 };
-export const DEFAULT_DESIGN: Design = { structure: "hybrid", fee: "makertaker", feeBps: 2, minSize: "1", pre: "masked", post: "15min", mmObl: true, mmInc: 1, clearing: "ccp", data: "basic", listing: "standard", access: "institutional", cb: false, marginOn: true, surv: false, audit: false, limits: false };
+export const DEFAULT_DESIGN: Design = { structure: "hybrid", fee: "makertaker", feeBps: 2, minSize: "1", pre: "masked", post: "15min", mmObl: true, mmInc: 1, clearing: "ccp", data: "basic", listing: "standard", access: "institutional", cb: false, marginOn: true, surv: false, audit: false, limits: false, riskScore: false };
 // Today's over-the-counter market, expressed in the same terms so the model can compare.
-export const OTC_BASE: Design = { structure: "rfq", fee: "flat", feeBps: 0, minSize: "1", pre: "delayed", post: "15min", mmObl: false, mmInc: 0, clearing: "bilateral", data: "basic", listing: "loose", access: "institutional", cb: false, marginOn: false, surv: true, audit: false, limits: false };
+export const OTC_BASE: Design = { structure: "rfq", fee: "flat", feeBps: 0, minSize: "1", pre: "delayed", post: "15min", mmObl: false, mmInc: 0, clearing: "bilateral", data: "basic", listing: "loose", access: "institutional", cb: false, marginOn: false, surv: true, audit: false, limits: false, riskScore: false };
 export const PLAYERS: { k: PK; label: string; w: number }[] = [
   { k: "bd", label: "Broker-dealers", w: 1.2 }, { k: "mm", label: "Market makers", w: 1.0 }, { k: "am", label: "Money managers", w: 1.0 }, { k: "ins", label: "Insurers", w: 0.6 },
   { k: "pen", label: "Pension funds", w: 0.5 }, { k: "bank", label: "Banks", w: 0.6 }, { k: "hf", label: "Hedge funds", w: 0.9 }, { k: "small", label: "Smaller investors", w: 0.3 },
@@ -134,16 +152,18 @@ export function model(d: Design, otc = false): Out {
   const data = pick(d.data, { none: 0, basic: 0.5, loanlevel: 1 }), list = pick(d.listing, { loose: 0, standard: 0.5, strict: 1 });
   const ccp = d.clearing === "ccp";
   const st = d.structure;
+  // Standard refreshed risk score (mock effect, deliberately modest): investors trust the pools more, dealers lose a little information edge.
+  const rs = d.riskScore && !otc ? 1 : 0;
   const sizeSmall = pick(d.minSize, { "0.25": 0, "1": 10, "5": 30, "25": 55 }), sizeLarge = pick(d.minSize, { "0.25": -5, "1": 0, "5": 6, "25": 10 });
   const p: Record<PK, number> = {
-    bd: 75 - 45 * trans + pick(st, { rfq: 20, hybrid: 8, auction: -5, clob: -15 }) + (ccp ? 4 : 0) + maker * 3 + d.mmInc * 2,
+    bd: 75 - 2 * rs - 45 * trans + pick(st, { rfq: 20, hybrid: 8, auction: -5, clob: -15 }) + (ccp ? 4 : 0) + maker * 3 + d.mmInc * 2,
     mm: 15 + d.mmInc * 14 + maker * 6 + pick(st, { clob: 18, hybrid: 12, auction: 4, rfq: -8 }) - (d.mmObl ? (d.mmInc >= 2 ? 0 : 12) : 0) + trans * 8 + data * 6 - (d.cb ? 2 : 0),
-    am: 45 + 20 * data + (ccp ? 8 : 0) - 25 * leak + sizeLarge + trans * 10 - taker * 2 + pick(st, { rfq: 5, hybrid: 8, auction: 6, clob: 0 }),
-    ins: 40 + 15 * data + 10 * list + (ccp ? 10 : 0) - 20 * leak + sizeLarge + pick(st, { rfq: 6, hybrid: 6, auction: 5, clob: -2 }) + (d.marginOn ? 3 : 0),
-    pen: 30 + 15 * data + 15 * list + (ccp ? 12 : 0) + 10 * trans - 15 * leak - (d.access === "broad" ? 3 : 0) + (d.surv ? 3 : 0) + (d.marginOn ? 3 : 0),
-    bank: 40 + (ccp ? 18 : 0) + 10 * data + 8 * list - 10 * leak + (st === "rfq" ? 5 : 0),
-    hf: 35 + 25 * trans + pick(st, { clob: 18, hybrid: 10, auction: 2, rfq: -5 }) - taker * 3 + (ccp ? 5 : 0) + 5 * data - (d.marginOn ? 3 : 0) - (d.limits ? 3 : 0),
-    small: 5 + 45 * trans + pick(d.access, { institutional: -40, qualified: -10, broad: 15 }) - sizeSmall + pick(st, { clob: 10, hybrid: 6, auction: 8, rfq: -10 }) - taker * 2 + 10 * data + (d.surv ? 3 : 0),
+    am: 45 + 3 * rs + 20 * data + (ccp ? 8 : 0) - 25 * leak + sizeLarge + trans * 10 - taker * 2 + pick(st, { rfq: 5, hybrid: 8, auction: 6, clob: 0 }),
+    ins: 40 + 5 * rs + 15 * data + 10 * list + (ccp ? 10 : 0) - 20 * leak + sizeLarge + pick(st, { rfq: 6, hybrid: 6, auction: 5, clob: -2 }) + (d.marginOn ? 3 : 0),
+    pen: 30 + 5 * rs + 15 * data + 15 * list + (ccp ? 12 : 0) + 10 * trans - 15 * leak - (d.access === "broad" ? 3 : 0) + (d.surv ? 3 : 0) + (d.marginOn ? 3 : 0),
+    bank: 40 + 3 * rs + (ccp ? 18 : 0) + 10 * data + 8 * list - 10 * leak + (st === "rfq" ? 5 : 0),
+    hf: 35 + 2 * rs + 25 * trans + pick(st, { clob: 18, hybrid: 10, auction: 2, rfq: -5 }) - taker * 3 + (ccp ? 5 : 0) + 5 * data - (d.marginOn ? 3 : 0) - (d.limits ? 3 : 0),
+    small: 5 + 4 * rs + 45 * trans + pick(d.access, { institutional: -40, qualified: -10, broad: 15 }) - sizeSmall + pick(st, { clob: 10, hybrid: 6, auction: 8, rfq: -10 }) - taker * 2 + 10 * data + (d.surv ? 3 : 0),
   };
   // Expensive venues push participants back to over-the-counter trading.
   const feeDrag = 1 / (1 + Math.pow(taker / 3.5, 2));
@@ -151,15 +171,15 @@ export function model(d: Design, otc = false): Out {
   const base = PLAYERS.reduce((s, x) => s + x.w * p[x.k], 0);
   const volume = base * pick(st, { clob: 1, hybrid: 1.08, auction: 0.8, rfq: 0.85 }) * pick(d.listing, { loose: 1.1, standard: 1, strict: 0.88 }) * (1 + 0.15 * data) * 1.6;
   const liq = clamp(volume / 8, 0, 100);
-  const spread = (55 / (1 + volume / 250)) * (1 - 0.3 * trans) * (d.mmObl && d.mmInc >= 1 ? 0.82 : 1) * pick(st, { clob: 0.9, hybrid: 1, auction: 1.1, rfq: 1.08 }) + taker * 0.5;
-  const disc = clamp(100 * (0.45 * trans + 0.3 * liq / 100 + 0.25 * data) * (st === "auction" ? 0.95 : 1), 0, 100);
+  const spread = (55 / (1 + volume / 250)) * (1 - 0.3 * trans) * (d.mmObl && d.mmInc >= 1 ? 0.82 : 1) * pick(st, { clob: 0.9, hybrid: 1, auction: 1.1, rfq: 1.08 }) * (1 - 0.03 * rs) + taker * 0.5;
+  const disc = clamp(100 * (0.45 * trans + 0.3 * liq / 100 + 0.25 * data + 0.06 * rs) * (st === "auction" ? 0.95 : 1), 0, 100);
   const safeCost = [d.cb, d.marginOn, d.surv, d.audit, d.limits].filter(Boolean).length;
   const memberSum = PLAYERS.reduce((s, x) => s + p[x.k], 0);
-  const revenue = otc ? 0 : Math.max(-20, volume * 250 * Math.max(0, taker - maker * (p.mm / 100)) * 1e-4 + (d.fee === "subscription" ? 4 + 0.05 * memberSum : 0) + (d.pre === "full" && d.post === "realtime" ? 3 : 6) + data * 3 - d.mmInc * 2.5 - safeCost * 1.2);
+  const revenue = otc ? 0 : Math.max(-20, volume * 250 * Math.max(0, taker - maker * (p.mm / 100)) * 1e-4 + (d.fee === "subscription" ? 4 + 0.05 * memberSum : 0) + (d.pre === "full" && d.post === "realtime" ? 3 : 6) + data * 3 - d.mmInc * 2.5 - safeCost * 1.2 - 0.5 * rs);
   const dealerProfit = volume * 250 * (spread / 2) * 1e-4 * (otc ? 0.85 : (p.bd / 100) * 0.6);
   const invCost = spread / 2 + taker;
-  const risk = clamp(20 + (ccp ? 0 : 25) + pick(d.access, { institutional: 0, qualified: 5, broad: 12 }) + pick(d.listing, { loose: 12, standard: 5, strict: 0 }) + pick(d.data, { none: 12, basic: 5, loanlevel: 0 }) + pick(st, { clob: 8, hybrid: 5, auction: 0, rfq: 2 }) + (d.mmInc >= 2 && !d.mmObl ? 8 : 0) - (d.cb ? 8 : 0) - (d.marginOn ? (ccp ? 10 : 4) : 0) - (d.surv ? 6 : 0) - (d.audit ? 6 : 0) - (d.limits ? 5 : 0), 0, 100);
-  const approval = clamp(35 + (ccp ? 15 : 0) + 18 * trans + 10 * data + 8 * list - 0.45 * risk + (d.access === "broad" && d.listing === "loose" ? -15 : 0) + (d.surv ? 6 : 0) + (d.access === "institutional" ? 5 : 0), 5, 97);
+  const risk = clamp(20 - 3 * rs + (ccp ? 0 : 25) + pick(d.access, { institutional: 0, qualified: 5, broad: 12 }) + pick(d.listing, { loose: 12, standard: 5, strict: 0 }) + pick(d.data, { none: 12, basic: 5, loanlevel: 0 }) + pick(st, { clob: 8, hybrid: 5, auction: 0, rfq: 2 }) + (d.mmInc >= 2 && !d.mmObl ? 8 : 0) - (d.cb ? 8 : 0) - (d.marginOn ? (ccp ? 10 : 4) : 0) - (d.surv ? 6 : 0) - (d.audit ? 6 : 0) - (d.limits ? 5 : 0), 0, 100);
+  const approval = clamp(35 + 3 * rs + (ccp ? 15 : 0) + 18 * trans + 10 * data + 8 * list - 0.45 * risk + (d.access === "broad" && d.listing === "loose" ? -15 : 0) + (d.surv ? 6 : 0) + (d.access === "institutional" ? 5 : 0), 5, 97);
   return { part: p, trans, leak, taker, maker, volume, liq, spread, disc, revenue, dealerProfit, invCost, risk, approval };
 }
 
@@ -184,6 +204,7 @@ export function reasons(d: Design, o: Out, b: Out): Record<PK, string[]> {
   if (d.listing === "strict") r.bank.push("Strict listing standards mean only well-documented, high-quality products.");
   if (tightened) r.small.push(`Spreads fall from ${b.spread.toFixed(0)} to ${o.spread.toFixed(0)} bps, cutting their trading cost.`);
   if (d.marginOn) r.hf.push("Margin requirements tie up their capital.");
+  if (d.riskScore) { r.ins.push("A standard monthly risk score (the portfolio report card) lets them track every pool's credit health without rebuilding each deal model."); r.pen.push("An independent, refreshed score supports best-execution and risk reporting to their board."); r.small.push("They see the same portfolio report card as the biggest firms."); r.bd.push("A shared risk score shrinks the edge their in-house analytics gave them."); }
   return r;
 }
 
@@ -218,7 +239,7 @@ export type Scen = { id: string; title: string; term: string; story: string; sev
 export const SCENS: Scen[] = [
   { id: "fire", title: "Fire sale (forced selling)", term: "firesale", story: "A large bond fund faces redemptions and must sell $800M of ABS this week.", sev: (d, o) => 70 - (d.structure === "auction" ? 15 : d.structure === "hybrid" ? 8 : 0) - (d.cb ? 15 : 0) - (d.mmObl ? 10 : 0) + (o.liq < 40 ? 15 : 0) + (d.access === "broad" ? 5 : 0), why: (d) => [d.structure === "auction" || d.structure === "hybrid" ? "Auctions batch the selling so buyers can step in at one price." : "Continuous trading lets the selling hit thin bids one after another.", d.cb ? "The circuit breaker paused the slide." : "No circuit breaker: prices could keep falling.", d.mmObl ? "Market makers had to keep quoting." : "Market makers were free to step away."] },
   { id: "flash", title: "Flash crash (runaway algorithm)", term: "flashcrash", story: "A trading firm's algorithm malfunctions and floods the book with sell orders for 90 seconds.", sev: (d) => 65 + (d.structure === "clob" ? 10 : 0) - (d.structure === "auction" ? 20 : 0) - (d.cb ? 25 : 0) - (d.surv ? 10 : 0) - (d.limits ? 10 : 0), why: (d) => [d.cb ? "Circuit breakers halted trading within seconds." : "No pause: the runaway orders kept hitting bids.", d.limits ? "Pre-trade risk limits capped the bad orders." : "No order or position limits to stop the flood.", d.structure === "auction" ? "Periodic auctions gave no chance for a sub-minute spiral." : "Continuous matching let the spiral build."] },
-  { id: "data", title: "Bad data (servicer misreports)", term: "loanlevel", story: "A servicer under-reports delinquencies for three months; prices are too high until the truth comes out.", sev: (d) => 60 - (d.data === "loanlevel" ? 20 : d.data === "none" ? -15 : 0) - (d.audit ? 25 : 0) - (d.listing === "strict" ? 10 : 0), why: (d) => [d.data === "loanlevel" ? "Loan-level data let investors spot odd patterns early." : "Only pool averages: the problem was hidden.", d.audit ? "Independent data audits caught the error." : "No audits: errors surfaced only when losses hit.", d.listing === "strict" ? "Strict listing standards required verified data." : "Loose listing standards let weak reporting in."] },
+  { id: "data", title: "Bad data (servicer misreports)", term: "loanlevel", story: "A servicer under-reports delinquencies for three months; prices are too high until the truth comes out.", sev: (d) => 60 - (d.data === "loanlevel" ? 20 : d.data === "none" ? -15 : 0) - (d.audit ? 25 : 0) - (d.listing === "strict" ? 10 : 0) - (d.riskScore ? 10 : 0), why: (d) => [d.data === "loanlevel" ? "Loan-level data let investors spot odd patterns early." : "Only pool averages: the problem was hidden.", d.audit ? "Independent data audits caught the error." : "No audits: errors surfaced only when losses hit.", d.listing === "strict" ? "Strict listing standards required verified data." : "Loose listing standards let weak reporting in.", d.riskScore ? "The independent monthly risk score, built partly from credit bureau data, flagged the gap between reported and actual borrower health." : "No independent risk score to cross-check the servicer's reports."] },
   { id: "manip", title: "Manipulation (spoofing, marking the close)", term: "spoofing", story: "A trader places large fake orders to push prices, then trades the other way.", sev: (d) => 60 - (d.surv ? 30 : 0) - (d.post === "realtime" ? 10 : 0) + (d.pre === "full" ? 5 : 0) + (d.access === "broad" ? 10 : 0) - (d.limits ? 10 : 0), why: (d) => [d.surv ? "Surveillance flagged the order pattern and the trader was suspended." : "No surveillance: the scheme ran for weeks.", d.post === "realtime" ? "Real-time trade reports made the odd prices visible quickly." : "Delayed reporting hid the pattern.", d.access === "broad" ? "Broad access means more accounts to monitor." : "Limited access made bad actors easier to trace."] },
   { id: "default", title: "Member default (a big firm fails)", term: "ccp", story: "A large dealer collapses with thousands of open trades.", sev: (d) => 70 - (d.clearing === "ccp" ? 25 : -10) - (d.marginOn ? (d.clearing === "ccp" ? 25 : 10) : 0) - (d.limits ? 10 : 0), why: (d) => [d.clearing === "ccp" ? "The clearing house stepped in and honored the trades." : "Bilateral trades: every counterparty had to chase the failed firm.", d.marginOn ? "Margin collected in advance covered most losses." : "No margin: losses landed on the surviving firms.", d.limits ? "Position limits had capped how much it could owe." : "No limits on how large its positions grew."] },
   { id: "pull", title: "Liquidity vanishes (market makers step away)", term: "liqprov", story: "Volatility spikes and liquidity providers pull their quotes.", sev: (d) => 60 - (d.mmObl ? 20 : 0) - d.mmInc * 5 - (d.structure === "auction" ? 5 : 0) - (d.cb ? 10 : 0), why: (d) => [d.mmObl ? "Obligations kept registered market makers quoting." : "Nothing required anyone to keep quoting.", d.mmInc >= 2 ? "Strong incentives made staying worthwhile." : "Weak incentives: leaving was cheaper.", d.cb ? "A pause let quotes come back." : "Spreads blew out with no pause."] },
@@ -242,11 +263,11 @@ export function scores(d: Design, o: Out, coldOk: boolean, stressAvg: number) {
 type Award = (k: string) => void;
 type ToastFn = (t: string, d?: string, kind?: Toast["kind"]) => void;
 const VENUE = "Lighthouse ABS Exchange";
-const KIND_LABEL: Record<Flow["kind"], string> = { fee: "Fees", spread: "Bid-ask spreads", rebate: "Rebates", sub: "Subscriptions & licences", custody: "Custody & settlement" };
-const KIND_COLOR: Record<Flow["kind"], string> = { fee: "var(--t0)", spread: "var(--t1)", rebate: "var(--t2)", sub: "var(--t3)", custody: "var(--amber)" };
+const KIND_LABEL: Record<Flow["kind"], string> = { fee: "Fees", spread: "Bid-ask spreads", rebate: "Rebates", sub: "Subscriptions & licences", custody: "Custody & settlement", data: "Data & scores (not money)" };
+const KIND_COLOR: Record<Flow["kind"], string> = { fee: "var(--t0)", spread: "var(--t1)", rebate: "var(--t2)", sub: "var(--t3)", custody: "var(--amber)", data: "#e06cb0" };
 const GROUP_COLOR: Record<Role["group"], string> = { core: "var(--accent)", sell: "var(--t1)", buy: "var(--t2)", post: "var(--t3)", info: "var(--amber)", rules: "var(--down)" };
 const GROUP_LABEL: Record<Role["group"], string> = { core: "Venue & technology", sell: "Sell side & issuers", buy: "Buy-side investors", post: "Clearing & settlement", info: "Data, ratings & loan reporting", rules: "Regulators" };
-const RING = ["tech", "reg", "data", "rate", "svc", "iss", "bd", "mm", "hf", "am", "ins", "pen", "bank", "ccp", "cust", "dep"];
+const RING = ["tech", "reg", "data", "rate", "svc", "iss", "bd", "mm", "hf", "am", "ins", "pen", "bank", "ccp", "cust", "dep", "risk"];
 const OTC_STEPS = [
   ["Ask for quotes (request for quote by phone or chat)", "The investor calls or messages 2 to 4 dealers it knows."],
   ["Dealers quote privately", "Each dealer sends a price only to this investor. Nobody else sees them."],
@@ -380,7 +401,7 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
   const W = 1040, H = 612, cx = W / 2, cy = H / 2;
   const pos: Record<string, { x: number; y: number }> = {
     ex: { x: cx, y: cy },
-    tech: { x: 260, y: 44 }, reg: { x: 433, y: 44 }, data: { x: 607, y: 44 }, rate: { x: 780, y: 44 },
+    tech: { x: 186, y: 44 }, reg: { x: 353, y: 44 }, risk: { x: 520, y: 44 }, data: { x: 687, y: 44 }, rate: { x: 854, y: 44 },
     iss: { x: 100, y: 170 }, bd: { x: 100, y: 300 }, mm: { x: 100, y: 430 },
     am: { x: 940, y: 130 }, ins: { x: 940, y: 215 }, pen: { x: 940, y: 300 }, bank: { x: 940, y: 385 }, hf: { x: 940, y: 470 },
     ccp: { x: 260, y: 556 }, cust: { x: 433, y: 556 }, dep: { x: 607, y: 556 }, svc: { x: 780, y: 556 },
@@ -390,8 +411,15 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
   const curve = (f: Flow, i: number) => {
     const a = pos[f.from], c = pos[f.to];
     const mx = (a.x + c.x) / 2, my = (a.y + c.y) / 2, dx = c.x - a.x, dy = c.y - a.y, len = Math.hypot(dx, dy) || 1;
-    const bend = 30 + (i % 3) * 14;
-    return { d: `M${a.x},${a.y} Q${mx - (dy / len) * bend},${my + (dx / len) * bend} ${c.x},${c.y}`, lx: mx - (dy / len) * bend * 0.55, ly: my + (dx / len) * bend * 0.55 };
+    const bend = f.bend ?? 30 + (i % 3) * 14;
+    const qx = mx - (dy / len) * bend, qy = my + (dx / len) * bend;
+    // two-way pair (e.g. subscription in, scores out): put each label nearer its source so they don't collide
+    // converging pair of the same kind: also pull the label back toward its source, where the lines are further apart
+    const t = f.lt ?? (FLOWS.some((g) => g.from === f.to && g.to === f.from) ? 0.3 : FLOWS.some((g) => g !== f && g.to === f.to && g.kind === f.kind) ? 0.38 : 0.5), u = 1 - t;
+    // clip both ends to the node borders so arrowheads sit on the edge, not under the node's text
+    const edge = (n: { x: number; y: number }, id: string) => { const hw = (id === "ex" ? 105 : 80) + 2, hh = (id === "ex" ? 29 : 23) + 2, ex = qx - n.x, ey = qy - n.y; const k = Math.min(Math.abs(ex) > 1e-6 ? hw / Math.abs(ex) : Infinity, Math.abs(ey) > 1e-6 ? hh / Math.abs(ey) : Infinity, 1); return { x: n.x + ex * k, y: n.y + ey * k }; };
+    const s0 = edge(a, f.from), s1 = edge(c, f.to);
+    return { d: `M${s0.x},${s0.y} Q${qx},${qy} ${s1.x},${s1.y}`, lx: u * u * a.x + 2 * t * u * qx + t * t * c.x, ly: u * u * a.y + 2 * t * u * qy + t * t * c.y };
   };
   const S1 = (): ReactNode => (
     <>
@@ -400,7 +428,7 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
           <Seg label="Map view" value={mapView} onChange={(v) => { setMapView(v); if (v === "money") award("xflow"); }} options={[{ value: "roles", label: "Who does what" }, { value: "money", label: "Who pays whom" }]} />
         </div>
       }>
-        {mapView === "money" && <div className="chips" style={{ marginBottom: 8 }}>{(["all", "fee", "spread", "rebate", "sub", "custody"] as const).map((k) => <button key={k} className={"chip" + (flowKind === k ? " on" : "")} onClick={() => setFlowKind(k)}>{k !== "all" && <span className="sw" style={{ background: KIND_COLOR[k] }} />}{k === "all" ? "All money flows" : KIND_LABEL[k]}</button>)}</div>}
+        {mapView === "money" && <div className="chips" style={{ marginBottom: 8 }}>{(["all", "fee", "spread", "rebate", "sub", "custody", "data"] as const).map((k) => <button key={k} className={"chip" + (flowKind === k ? " on" : "")} onClick={() => setFlowKind(k)}>{k !== "all" && <span className="sw" style={{ background: KIND_COLOR[k] }} />}{k === "all" ? "All money flows" : KIND_LABEL[k]}</button>)}</div>}
         <div className="xmap">
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Map of ABS exchange participants">
             <defs>{(Object.keys(KIND_COLOR) as Flow["kind"][]).map((k) => <marker key={k} id={"xa-" + k} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style={{ fill: KIND_COLOR[k] }} /></marker>)}</defs>
@@ -415,7 +443,7 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
               <g key={id} className={"xnode" + (id === mapSel ? " on" : "") + (seenRoles.includes(id) ? " seen" : "")} transform={`translate(${p.x - w / 2},${p.y - h / 2})`} onClick={() => pickRole(id)} tabIndex={0} role="button" aria-label={`${r.name} (${r.role})`} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickRole(id); } }}>
                 <rect width={w} height={h} rx={9} style={{ stroke: GROUP_COLOR[r.group] }} />
                 <rect width={4} height={h} rx={2} style={{ fill: GROUP_COLOR[r.group] }} />
-                <text x={12} y={h / 2 - 4} className="xn1">{r.name.length > 22 && id !== "ex" ? r.name.slice(0, 20) + "\u2026" : r.name}</text>
+                <text x={12} y={h / 2 - 4} className="xn1">{(() => { const nm = r.short ?? r.name; return nm.length > 22 && id !== "ex" ? nm.slice(0, 20) + "\u2026" : nm; })()}</text>
                 <text x={12} y={h / 2 + 11} className="xn2">{r.role.length > 28 ? r.role.slice(0, 26) + "\u2026" : r.role}</text>
               </g>); })}
           </svg>
@@ -431,13 +459,14 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
             { label: "How they get paid", value: role.paid },
             { label: "Incentives (what they push for)", value: role.incent },
             { label: "Conflicts of interest", value: role.conflict },
+            ...(role.extra ?? []),
           ]} />
           <div className="legal" style={{ marginTop: 10 }}>{role.id === "ex" ? "Lighthouse ABS Exchange is fictional." : `Incentives and conflicts describe this type of firm in general, not ${role.name}'s actual conduct.`} {DISCLAIMER}</div>
         </Panel>
-        <Panel title={`Money in and out: ${role.name}`} tight>
+        <Panel title={`Money and data in and out: ${role.name}`} tight>
           {(() => { const ins = FLOWS.filter((f) => f.to === role.id), outs = FLOWS.filter((f) => f.from === role.id); const nm = (id: string) => ROLES.find((r) => r.id === id)?.name ?? id; return (
-            <Tbl cols={["Direction", "Counterparty", "For"]} rows={[...ins.map((f) => [<span key={f.from} className="up">{"\u2190 receives"}</span>, nm(f.from), f.label]), ...outs.map((f) => [<span key={f.to} className="down">{"\u2192 pays"}</span>, nm(f.to), f.label])]} />); })()}
-          <div className="p dim" style={{ padding: "8px 12px" }}>Switch the map to "Who pays whom" to watch the money move. Collateral posted as margin is not a fee: it is returned if nobody defaults.</div>
+            <Tbl cols={["Direction", "Counterparty", "For"]} rows={[...ins.map((f) => [<span key={f.from} className="up">{f.kind === "data" ? "\u2190 receives data" : "\u2190 receives"}</span>, nm(f.from), f.label]), ...outs.map((f) => [<span key={f.to} className={f.kind === "data" ? "" : "down"}>{f.kind === "data" ? "\u2192 sends data" : "\u2192 pays"}</span>, nm(f.to), f.label])]} />); })()}
+          <div className="p dim" style={{ padding: "8px 12px" }}>Switch the map to "Who pays whom" to watch the money move (pink lines are data and scores, not money). Collateral posted as margin is not a fee: it is returned if nobody defaults.</div>
         </Panel>
       </div>
     </>
@@ -494,6 +523,7 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
           <Slider label="Market-maker incentives (rebates, fee discounts)" value={d.mmInc} min={0} max={3} step={1} fmt={(v) => ["None", "Modest", "Generous", "Very generous"][v]} onChange={(v) => set("mmInc", v)} />
           <div className="field"><label><Term k="ccp">Clearing</Term></label><Seg label="Clearing" value={d.clearing} onChange={(v) => set("clearing", v)} options={[{ value: "ccp", label: "Central (CCP)" }, { value: "bilateral", label: "Bilateral" }]} /></div>
           <div className="field"><label><Term k="loanlevel">Loan-level data disclosure</Term></label><Seg label="Data disclosure" value={d.data} onChange={(v) => set("data", v)} options={[{ value: "none", label: "Pool summary only" }, { value: "basic", label: "Basic monthly" }, { value: "loanlevel", label: "Full loan-level" }]} /></div>
+          <div className="field"><label><Term k="riskscore">Standard portfolio risk score</Term> (the portfolio report card)</label><Switch label="Standard refreshed risk score published (mock effect)" value={d.riskScore} onChange={(v) => set("riskScore", v)} /></div>
           <div className="field"><label><Term k="listing">Listing standards</Term></label><Seg label="Listing standards" value={d.listing} onChange={(v) => set("listing", v)} options={[{ value: "loose", label: "Loose" }, { value: "standard", label: "Standard" }, { value: "strict", label: "Strict" }]} /></div>
           <div className="field"><label>Who's allowed in (access)</label><Seg label="Access" value={d.access} onChange={(v) => set("access", v)} options={[{ value: "institutional", label: "Institutions only" }, { value: "qualified", label: "+ qualified investors" }, { value: "broad", label: "Broad access" }]} /></div>
         </Panel>
@@ -688,7 +718,7 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
   const coach = ((): string => {
     switch (stage) {
       case 0: return pathT < 6 ? "Press play to follow one trade down both paths. Then switch the order size: an exchange is cheapest for small trades, but very large blocks can be harder on a visible order book." : "Notice what the public learns and when. Over the counter, only the dealers you called know the price until the trade is reported. On an exchange, everyone sees it at once.";
-      case 1: return `Click each box to see what the participant does, what it needs, how it's paid and where its conflicts are. You've explored ${seenRoles.length} of ${ROLES.length}; explore 8 for the Marketplace Mapper badge. Then switch to "Who pays whom".`;
+      case 1: return `Click each box to see what the participant does, what it needs, how it's paid and where its conflicts are. You've explored ${seenRoles.length} of ${ROLES.length}; explore 8 for the Marketplace Mapper badge. Then switch to "Who pays whom". New: the risk analytics provider (the portfolio report card) turns loan and credit data into one monthly score for every deal.`;
       case 2: return o.taker > 3 ? "Your fees are high. Revenue per trade looks great, but volume is draining back to over-the-counter trading. Try 1 to 2 bps." : o.trans > 0.8 && d.structure === "clob" ? "A fully lit order book is great for price discovery and smaller investors, but watch the insurers and money managers: big orders fear information leakage." : d.clearing === "bilateral" ? "Bilateral settlement keeps things like OTC: regulators and banks get nervous because one failure can spread." : "Every control moves several numbers at once. Watch participation by player type: a market needs dealers, market makers and investors to all show up.";
       case 3: return "Each verdict compares your design with today's over-the-counter market using the same synthetic model. Incentives explain behavior: people support rules that pay them and resist rules that cost them.";
       case 4: return coldOk ? `Critical mass in month ${critM}. A standard first product plus paid liquidity is how many real venues got going.` : "Pick the first product and spend your launch points. Hint: the most standardized products, like agency MBS TBA, make the cold start much easier.";
@@ -700,7 +730,7 @@ export function useExchange({ award, toast }: { award: Award; toast: ToastFn }) 
   const TOUR: { sel: string; title: string; body: string }[] = [
     { sel: "mode", title: "Welcome to Exchange Builder", body: "A separate module: design a new marketplace where asset-backed securities could trade. Switch between Deal Lab and Exchange Builder here at any time (or press X)." },
     { sel: "rail", title: "Eight steps", body: "From how ABS trade today (over the counter, by phone with dealers) to a final pitch scorecard and a written PRFAQ (press release + FAQ) for your exchange." },
-    { sel: "workspace", title: "Hands-on workspace", body: "Play a trade down both paths, explore a clickable marketplace map, set the rules, plan the launch and stress-test the design. All numbers come from a made-up (synthetic) model. Real firms are named only to show who plays each role; the exchange itself is fictional." },
+    { sel: "workspace", title: "Hands-on workspace", body: "Play a trade down both paths, explore a clickable marketplace map (including the risk analytics provider, the portfolio report card), set the rules, plan the launch and stress-test the design. All numbers come from a made-up (synthetic) model. Real firms are named only to show who plays each role; the exchange itself is fictional." },
     { sel: "coach", title: "Coach, terms and quizzes", body: "The coach explains each step in plain English, key terms are listed with their everyday meaning, and each step has a quick check for XP. New exchange terms are in the dictionary too." },
     { sel: "", title: "Replay anytime", body: "You can replay this tour anytime from the Replay tour button, the G key, or the ? help overlay. Badges here: Marketplace Mapper, Cold Start Solver, Stress Tester and Market Architect." },
   ];
