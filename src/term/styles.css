@@ -480,3 +480,69 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 18px; back
   .flow-scroll svg { min-width: 760px; }
 }
 .flow-scroll { padding-top: 10px; }
+
+/* ---------- credit due diligence + monitoring ---------- */
+.cnl-chart svg { display: block; }
+.cnl-chart .grid-l { stroke: var(--border); stroke-width: 1; }
+.cnl-chart .ax { fill: var(--text3); font-size: 13px; }
+.nowrap { white-space: nowrap; }
+.cnl-chart .legend { margin-top: 6px; }
+.sw.sw-dash { background: none; border-top: 2px dashed var(--text3); height: 0; width: 14px; vertical-align: middle; }
+.mini-h { font-size: 11px; font-weight: 650; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin: 0 0 8px; }
+.dd-steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; margin-top: 12px; }
+.dd-step { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px; color: var(--text2); min-width: 0; }
+.dd-step .n { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: var(--panel2); border: 1px solid var(--border2); }
+.dd-step.on { border-color: var(--accent); color: var(--text); }
+.dd-step.on .n { background: var(--accent); color: #fff; border-color: var(--accent); }
+.dd-step.ok .n { background: var(--up); color: #fff; border-color: var(--up); }
+.verdicts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.verdict { border: 1px solid var(--border); border-left: 3px solid var(--up); border-radius: 8px; padding: 9px 11px; min-width: 0; }
+.verdict.v-warn { border-left-color: var(--amber); }
+.verdict.v-bad { border-left-color: var(--down); }
+.verdict .vh { font-weight: 650; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+.verdict .vb { font-size: 12.5px; color: var(--text2); line-height: 1.45; overflow-wrap: anywhere; }
+.strats { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.strat { min-width: 0; }
+.strat-h { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+.strat-t { font-weight: 650; font-size: 12.5px; }
+.strat-h .dim { font-size: 11.5px; }
+.strat-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 46px; gap: 8px; align-items: center; font-size: 12px; padding: 2px 0; }
+.strat-row .sl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2); }
+.strat-row .st { height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+.strat-row .st i { display: block; height: 100%; border-radius: 4px; }
+.strat-row .sv { text-align: right; }
+.strat-n { font-size: 11.5px; margin-top: 4px; }
+.health-now { display: grid; gap: 6px; margin-bottom: 10px; }
+.health-now .hn { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; font-size: 12.5px; }
+.htl { display: grid; gap: 5px; }
+.htl-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 12px; }
+.htl-cells { display: flex; gap: 2px; min-width: 0; }
+.htl-cells i { flex: 1 1 0; min-width: 2px; max-width: 14px; height: 14px; border-radius: 2px; }
+.htl-ax { display: flex; justify-content: space-between; font-size: 11px; padding-left: 100px; }
+.alerts .rw { padding: 6px 0; }
+.alerts .dd { font-size: 12.5px; }
+.mstrip { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 10px 12px 4px; font-size: 12.5px; }
+.ms-i { display: inline-flex; gap: 6px; align-items: center; }
+.ms-alert { padding: 4px 12px; font-size: 12.5px; display: flex; gap: 8px; align-items: baseline; }
+.ms-act { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 12px 10px; }
+.report-modal { width: min(940px, 100%); max-height: 90vh; }
+.report-actions { display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--panel); }
+.report .rp-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; }
+.report .rp-k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text3); }
+.report .rp-t { font-size: 18px; font-weight: 700; margin: 2px 0; }
+.report .rp-sec { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); margin: 16px 0 6px; }
+.report .rp-mon { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 10px; font-size: 12.5px; }
+@media (max-width: 1180px) { .verdicts { grid-template-columns: 1fr; } }
+@media (max-width: 860px) {
+  .strats { grid-template-columns: 1fr; }
+  .htl-row { grid-template-columns: 78px minmax(0, 1fr); }
+  .htl-ax { padding-left: 86px; }
+  .report-modal { max-height: 92vh; }
+  .cnl-chart .ax { font-size: 15px; }
+}
+@media (max-width: 860px) {
+  .quote-row { grid-template-columns: minmax(0, 1.15fr) repeat(4, minmax(0, 1fr)); }
+  .quote-row .cell-px, .quote-row .num { font-size: 12px; min-width: 0; }
+  .gauges .panel-h { flex-wrap: wrap; padding: 8px; }
+  .gauges .panel-h h2 { font-size: 11px; letter-spacing: .02em; min-width: 0; }
+}

@@ -62,6 +62,19 @@ export const G: Record<string, [string, string, string]> = {
   pnl: ["P&L", "profit or loss", "How much you have made or lost so far, counting your cash plus what your holdings are worth right now."],
   dv01: ["Duration / DV01", "rate sensitivity", "How much a bond's price moves when rates move. The longer the wait for your money, the bigger the price swing."],
   residual: ["Residual / equity tranche", "owner's slice", "Whatever is left after every floor is paid. The riskiest piece, usually kept by the lender. Big upside if borrowers keep paying."],
+  duediligence: ["Due diligence", "the home inspection", "Checking a deal before you buy it: matching the loan data to real loan files, reading the documents, reviewing the servicer, confirming the legal setup, forecasting losses and grading each tranche yourself."],
+  datatape: ["Data tape", "the loan-level spreadsheet", "A file with one row per loan (balance, rate, credit score, location, payment history). Investors check a sample of it against the actual loan files to catch errors."],
+  stratification: ["Stratification, strats", "pool breakdown", "Slicing the pool into buckets (credit score bands, loan-to-value, loan age, region, rate) to see what share of the balance sits in each. It shows where the risk is concentrated."],
+  seasoning: ["Seasoning", "loan age", "How many months the loans have been paying. Loans that have paid on time for a while are less likely to go bad than brand-new ones."],
+  concentration: ["Concentration", "too many eggs in one basket", "A large share of the pool in one state, industry or genre. One local shock could then hurt many loans at once. Deals often cap it, for example at 25%."],
+  cnl: ["Cumulative net loss, CNL", "running total of losses", "All losses so far after recoveries, as a percentage of the original pool. The number triggers and forecasts are usually measured in."],
+  breakeven: ["Breakeven loss", "the flood line for your floor", "How much of the pool can be lost before a tranche loses its first dollar. Compare it with the expected loss: the bigger the gap, the safer the tranche."],
+  breakevencdr: ["Breakeven CDR", "the default rate your floor survives", "The yearly default rate at which a tranche would just start losing money. If it is 5 times the expected default rate, the tranche survives a storm 5 times worse than forecast."],
+  pol: ["Probability of loss", "chance your floor gets wet", "The estimated chance that losses ever reach a tranche. Expected loss also counts how much it would lose if they do."],
+  shadowrating: ["Shadow rating", "your own grade", "A rating an investor works out for itself from its own analysis, to check whether the agency's grade is fair. It is not published."],
+  roll: ["Roll rates", "how late payers get later", "The share of borrowers who move from 30 days late to 60, and from 60 to 90+. Rising roll rates are an early sign that losses are coming."],
+  watchlist: ["Watchlist", "early warning list", "Deals or tranches flagged for a closer look because something is slipping: refreshed credit scores falling, delinquencies rising or a trigger getting close."],
+  health: ["Tranche health status", "traffic light", "A simple green, amber or red summary of how safe a tranche looks right now, based on projected losses against its breakeven loss and how much cushion is left."],
   fico: ["FICO score", "credit score", "A 300 to 850 number that predicts how likely someone is to repay. 720+ is strong; under 620 is called subprime."],
   spv: ["Special purpose vehicle, SPV", "walled-off box", "A separate mini-company set up for one job: owning the basket and issuing the bonds. It has no employees. Because it is walled off, if the lender goes bust, the lender's creditors can't grab the loans, and investors keep getting paid from borrowers' payments."],
   truesale: ["True sale", "a real sale", "The lender truly sells the loans to the special purpose vehicle and gets cash for them. Once sold, they no longer belong to the lender, so the lender's creditors can't claim them."],
@@ -378,10 +391,11 @@ export function pv(cf: number[], rate: number): number {
 // ---------- awards ----------
 export const AW: Record<string, [number, string]> = {
   players: [50, "Networker"], pool: [40, ""], graded: [30, ""], aaa: [60, "AAA Achieved"], closed: [80, "Deal Closed"], sweet: [50, "Sweet-Spot Pricing"], mm: [60, "Market Maker"], green: [60, "In the Green"], recession: [80, "Survived the Recession"], explorer: [80, "Explorer"], tripwire: [40, "Tripwire Spotter"], q8: [20, ""],
+  dd: [60, "Home Inspector"], ddshare: [30, ""], watch: [50, "Early Warning"], qspv: [20, ""],
   q0: [20, ""], q1: [20, ""], q2: [20, ""], q3: [20, ""], q4: [20, ""], q5: [20, ""], q6: [20, ""], q7: [20, ""],
 };
 export const LEVELS: [number, string][] = [[0, "Intern"], [140, "Analyst"], [300, "Associate"], [480, "Vice President"], [680, "Head of Desk"]];
-export const STAGES = ["Select the collateral pool (pick your basket)", "Market participants (meet the players)", "Build the collateral pool (fill the basket)", "Structure the tranches (build the floors)", "Get rated (get graded)", "Price and place the bonds (sell the floors)", "Secondary trading (the trading floor)", "Stress test (storm test)"];
+export const STAGES = ["Select the collateral pool (pick your basket)", "Market participants (meet the players)", "Build the collateral pool (fill the basket)", "Structure the tranches (build the floors)", "Get rated (get graded)", "Credit due diligence (the home inspection)", "Price and place the bonds (sell the floors)", "Secondary trading (the trading floor)", "Stress test (storm test)"];
 
 export type Quiz = { q: string; opts: string[]; ok: number; why: string };
 export const QUIZ: Quiz[] = [
@@ -390,6 +404,7 @@ export const QUIZ: Quiz[] = [
   { q: "If the collateral pool's (basket's) average credit score goes down, expected net loss...", opts: ["go down", "go up", "don't change"], ok: 1, why: "Lower scores mean more borrowers likely to stop paying, so more expected losses." },
   { q: "When bad loans pile up, who loses money first?", opts: ["The senior tranche (top floor)", "The residual and junior tranche (owner's slice and bottom floor)", "Everyone equally"], ok: 1, why: "Losses flood from the bottom up. That is exactly why the top floor is safe." },
   { q: "A tranche's credit enhancement (safety cushion) can absorb 5x expected losses. Which credit rating (grade) fits best for car loans?", opts: ["AAA", "BBB", "Not rated"], ok: 0, why: "Agencies give AAA only to floors that survive a storm about 5 times worse than expected (stricter for unusual baskets)." },
+  { q: "A tranche's breakeven loss is 12% of the pool and your base forecast is 3%. What does that mean?", opts: ["Losses can run about 4 times the forecast before it loses a dollar", "It will lose 12% of its money", "It must be rated BB"], ok: 0, why: "Breakeven is the flood line for your floor. 12% divided by 3% means the pool can do 4 times worse than expected before this tranche is touched." },
   { q: "Your senior tranche (top floor) is 4x oversubscribed (covered). What does that tell you?", opts: ["You offered more spread (extra pay) than needed", "Nobody wants it", "Its rating (grade) is wrong"], ok: 0, why: "Huge demand means you could cut the extra pay and keep more leftover money for the seller." },
   { q: "The benchmark rate (safe rate) jumps. Bonds you already own...", opts: ["go up in price", "go down in price", "don't move"], ok: 1, why: "New bonds now pay more, so old ones must get cheaper to compete. Like a seesaw: rates up, prices down." },
   { q: "Prepayments (early payoffs) jump. The weighted average life, WAL (average wait for your money)...", opts: ["gets shorter", "gets longer", "stays the same"], ok: 0, why: "Early payoffs return money sooner, so the average wait shrinks. For home loans this happens when rates fall." },

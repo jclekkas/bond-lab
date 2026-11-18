@@ -13,9 +13,10 @@ An interactive, beginner-friendly simulator for building and trading **mock asse
 3. **Build the collateral pool (fill the basket)**: loan count, credit score, rate and term, with synthetic stats and a score histogram.
 4. **Structure the tranches (build the floors)**: senior / mezzanine / junior tranches, overcollateralization, reserve account and excess spread on a draggable capital stack with stress lines.
 5. **Get rated (get graded)**: rule-based mock ratings from how many times expected losses each tranche's credit enhancement survives.
-6. **Price and place the bonds (sell the floors)**: set spreads and watch a live investor order book fill, with oversubscription gauges.
-7. **Secondary trading (the trading floor)**: $10M of mock cash, a quotes board with price flashes, candle/line chart with crosshair, order ticket (buy/sell, $1M/$2M/$5M, market or limit), level-2 depth, positions with unrealized and realized P&L, monthly news shocks, coupons and a trade blotter.
-8. **Stress test (storm test)**: recessions, refinance waves or a 2008-style crash with an animated month-by-month waterfall (play, pause, step, speed, scrub).
+6. **Credit due diligence (the home inspection)**: before pricing, run an investor-style review of the starting deal: pool stratification (credit score bands, class-specific measures such as LTV, DTI, utilization or leverage, loan age, geography or industry concentration, rate), a 12-file loan-level sample with exceptions flagged, a credit risk forecast (default rate, severity and a cumulative net loss curve for base, stress and severe cases with a confidence band), and a tranche-by-tranche review: credit enhancement, breakeven loss and breakeven CDR, expected loss, probability of loss, a shadow rating next to the agency rating and a plain-English verdict. It all goes into a **Tranche review report** with a due diligence checklist (data tape, documents, servicer, true sale, triggers, concentrations) that you can open, print or save as PDF, download as PNG and share with investors. Sharing it trims the uncertainty premium investors ask for (mock effect). Once trading starts, **monitoring** refreshes the pool every month with mock refreshed credit scores (the risk analytics provider role from Exchange Builder): actual vs. forecast losses, 30/60/90+ delinquencies and roll rates, credit enhancement build or erosion, trigger cushion, watchlist alerts and a green/amber/red health status per tranche with a timeline. Health changes move secondary prices, and an updated tranche review is one click away on the trading floor.
+7. **Price and place the bonds (sell the floors)**: set spreads and watch a live investor order book fill, with oversubscription gauges.
+8. **Secondary trading (the trading floor)**: $10M of mock cash, a quotes board with price flashes, candle/line chart with crosshair, order ticket (buy/sell, $1M/$2M/$5M, market or limit), level-2 depth, positions with unrealized and realized P&L, monthly news shocks, coupons and a trade blotter.
+9. **Stress test (storm test)**: recessions, refinance waves or a 2008-style crash with an animated month-by-month waterfall (play, pause, step, speed, scrub).
 
 XP, levels, badges, a quick check in every step and a searchable dictionary keep it fun.
 
@@ -23,7 +24,7 @@ XP, levels, badges, a quick check in every step and a searchable dictionary keep
 
 A dark trading-terminal layout (light mode too): top bar with the deal, asset class, cash, P&L, XP and clock; a stage rail with progress and locks; the workspace; a collapsible coach and dictionary panel; and a bottom news tape with blotter, working orders and news wire. First visit shows a short plain-English tour; replay it anytime with the **Replay tour** button in the top bar (the ▶ Tour tab on phones), the `G` key, or the `?` help overlay, which can also jump to any tour step. On phones the panels become tabs.
 
-Keyboard: `?` help, `Esc` close, `[` `]` previous/next step, `1`–`8` jump, `T` theme, `C` coach panel, `D` dictionary, `G` replay the tour, `X` switch between Deal Lab and Exchange Builder (where `1`–`8` jump); on the trading floor `B` buy, `S` sell, `N` next month, `P` auto-advance; in the stress test `P` play/pause, `N` step.
+Keyboard: `?` help, `Esc` close, `[` `]` previous/next step, `1`–`9` jump, `T` theme, `C` coach panel, `D` dictionary, `G` replay the tour, `X` switch between Deal Lab and Exchange Builder (where `1`–`8` jump); on the trading floor `B` buy, `S` sell, `N` next month, `P` auto-advance; in the stress test `P` play/pause, `N` step.
 
 ### Who owns what
 
@@ -61,6 +62,7 @@ Pushing to `main` runs `.github/workflows/deploy.yml`, which builds with Vite an
 
 - `src/term/Terminal.tsx`: the trading-terminal app (state, market model, order handling, screens, shell).
 - `src/term/engine.tsx`: data, asset classes, players, ratings, quizzes and the cash-flow waterfall engine.
+- `src/term/ddmodel.ts` and `src/term/diligence.tsx`: the credit due diligence model (stratification, sample review, loss forecast, breakeven, shadow ratings, monthly monitoring) and its screens, report and print/PNG export.
 - `src/term/exchange.tsx`: the Exchange Builder module (roles, money flows, market-design model, cold start, risk scenarios, scorecard).
 - `src/term/prfaq.ts`: the PRFAQ text and print stylesheet; `node make-prfaq.mjs` re-renders `public/bond-lab-prfaq.pdf` from it (needs local Chrome).
 - `src/term/ui.tsx`, `src/term/charts.tsx`: UI pieces and SVG charts (price chart, capital stack, gauges, balance chart, flow diagram).

@@ -41,7 +41,7 @@ for (const name of ASSETS) {
   const r = [`== ${name}`];
   await stage(1); await click(name, ".asset-card");
   // locks before progress
-  await stage(6); r.push("  lock before rating: " + ((await text()).includes("Price and place the bonds") ? "NOT LOCKED" : "locked ok"));
+  await stage(7); r.push("  lock before rating: " + ((await text()).includes("Price and place the bonds") ? "NOT LOCKED" : "locked ok"));
   await stage(2);
   for (const p of ["the borrowers", "the servicer", "the trustee", "the rating agencies", "the underwriter", "the market maker"]) await click(p, ".chip", true);
   await click("So the lender's creditors can't grab them");
@@ -56,17 +56,21 @@ for (const name of ASSETS) {
   await key("ArrowUp");
   await stage(5); await click("Request credit ratings"); await sleep(1100);
   r.push("  ratings: " + (await page.evaluate(() => [...document.querySelectorAll(".main .rating")].slice(0, 3).map((x) => x.textContent).join("/"))));
-  await stage(6); await sleep(1700);
+  // credit due diligence (step 6)
+  await stage(6); await click("Run due diligence"); await sleep(2300);
+  r.push("  diligence: " + (await page.evaluate(() => [...document.querySelectorAll(".verdict .vh")].map((v) => v.innerText.replace(/\s+/g, " ")).join(" | "))) + " | strats " + (await page.evaluate(() => document.querySelectorAll(".strat").length)) + " | sample " + (await page.evaluate(() => document.querySelectorAll(".main .tbl tbody tr").length)));
+  await click("Open the tranche review report"); r.push("  report modal: " + !!(await page.$(".report-modal"))); await click("Share with investors", ".report-actions button"); await key("Escape");
+  await stage(7); await sleep(1700);
   let closeOk = await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.includes("Price and close the deal")); return b && !b.disabled; });
   if (!closeOk) { // widen spreads until covered
     for (let i = 0; i < 3; i++) await setRange(i, [140, 400, 900][i]);
     await sleep(1700);
     closeOk = await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.includes("Price and close the deal")); return b && !b.disabled; });
-    if (!closeOk) { await stage(4); await setRange(0, 70); await setRange(3, 3); await stage(5); await click("Re-check ratings"); await sleep(1100); await stage(6); for (let i = 0; i < 3; i++) await setRange(i, [140, 400, 900][i]); await sleep(1700); r.push("  (needed thicker cushion to sell)"); }
+    if (!closeOk) { await stage(4); await setRange(0, 70); await setRange(3, 3); await stage(5); await click("Re-check ratings"); await sleep(1100); await stage(7); for (let i = 0; i < 3; i++) await setRange(i, [140, 400, 900][i]); await sleep(1700); r.push("  (needed thicker cushion to sell)"); }
   }
   r.push("  gauges: " + (await page.evaluate(() => [...document.querySelectorAll(".gauge .num")].map((x) => x.textContent).join(" "))));
   await click("Price and close the deal");
-  await stage(7); await click("Open secondary trading"); await click("Buy", ".seg button"); await click("$1M", ".seg button");
+  await stage(8); await click("Open secondary trading"); await click("Buy", ".seg button"); await click("$1M", ".seg button");
   await click("Buy $1M"); await key("n"); await key("n"); await key("b"); await key("n");
   await click("Sell", ".seg button"); await click("$2M", ".seg button"); await click("Sell $2M");
   await click("Limit", ".seg button");
@@ -82,7 +86,11 @@ for (const name of ASSETS) {
     await page.mouse.move(bb.x, bb.y); await sleep(4200);
     await page.screenshot({ path: `${SHOTS}/desktop-trading-floor.png` });
   }
-  await stage(8); await click("Play"); await sleep(1500); await click("Pause");
+  // monitoring over many months
+  for (let k = 0; k < 30; k++) { await page.keyboard.press("n"); await sleep(20); }
+  await sleep(200);
+  r.push("  monitoring M" + (await page.evaluate(() => document.querySelector("[data-tour=monitor-strip]")?.innerText.replace(/\s+/g, " ").slice(0, 200))));
+  await stage(9); await click("Play"); await sleep(1500); await click("Pause");
   r.push("  stress month: " + (await page.evaluate(() => document.querySelector(".player input")?.value)) + " wf rows " + (await page.evaluate(() => document.querySelectorAll(".wf-row").length)));
   const ov = await overflow(); if (ov.length) r.push("  OVERFLOW: " + ov.join("; "));
   report.push(r.join("\n"));
@@ -136,9 +144,14 @@ const m = await open("http://localhost:4173/", "mobile", M);
 await m.click("Credit card ABS (credit cards)", ".asset-card"); await m.stage(4); await sleep(200);
 notes.push("mobile overflow s4: " + JSON.stringify(await m.overflow()));
 await m.page.screenshot({ path: `${SHOTS}/mobile-structuring.png` });
-await m.stage(5); await m.click("Request credit ratings"); await sleep(1100); await m.stage(6); await sleep(1600); await m.click("Price and close the deal", "button", true);
-await m.stage(7); await m.click("Open secondary trading"); await m.click("Buy $1M"); await m.click("Next month");
-notes.push("mobile overflow s7: " + JSON.stringify(await m.overflow()));
+await m.stage(5); await m.click("Request credit ratings"); await sleep(1100);
+await m.stage(6); await m.click("Run due diligence"); await sleep(2300); notes.push("mobile overflow s6 (diligence): " + JSON.stringify(await m.overflow()));
+await m.stage(7); await sleep(1600); await m.click("Price and close the deal", "button", true);
+await m.stage(8); await m.click("Open secondary trading"); await m.click("Buy $1M"); await m.click("Next month");
+for (let k = 0; k < 36; k++) { await m.page.keyboard.press("n"); await sleep(20); }
+notes.push("mobile monitoring: " + (await m.page.evaluate(() => document.querySelector("[data-tour=monitor-strip]")?.innerText.replace(/\s+/g, " ").slice(0, 160))));
+notes.push("mobile overflow s8: " + JSON.stringify(await m.overflow()));
+await m.stage(6); await sleep(300); notes.push("mobile monitoring panel: " + !!(await m.page.$("[data-tour=monitor]")) + " overflow " + JSON.stringify(await m.overflow()));
 await m.page.screenshot({ path: "/workspace/shot-mobile-trading.png", fullPage: false });
 await m.click("Coach", ".mtabs button"); await sleep(150); notes.push("mobile coach visible: " + (await m.page.evaluate(() => getComputedStyle(document.querySelector(".side")).display)));
 await m.page.screenshot({ path: "/workspace/shot-mobile-coach.png" });

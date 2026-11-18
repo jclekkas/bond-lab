@@ -11,6 +11,10 @@ import { useExchange, STAGES_X, SHORT_X } from "./exchange";
 import { PriceChart, Histogram, CapitalStack, Gauge, BalanceChart, FlowDiagram, Spark, OWN_COLOR } from "./charts";
 import type { OwnTone } from "./charts";
 import type { StackLayer } from "./charts";
+import { runDD, monStart, monStep, HEALTH_PREM } from "./ddmodel";
+import type { DD, MonRow, MonCtx } from "./ddmodel";
+import { DDStage, MonitorPanel, MonitorStrip, ReportBody, reportHTML, reportPNG } from "./diligence";
+import type { ReportCtx } from "./diligence";
 
 // ---------- trading state ----------
 type Side = "Buy" | "Sell";
@@ -20,19 +24,20 @@ type News = { m: number; title: string; detail: string; tone?: "good" | "bad" };
 type TM = {
   started: boolean; bk: boolean; m: number; bench: number; unemp: number; cprM: number; sevAdd: number;
   mkt: number[]; orig: number[]; hist: { m: number; px: number[] }[]; cash: number; pos: number[]; avg: number[];
-  realized: number; income: number; trades: Trade[]; orders: Order[]; news: News[];
+  realized: number; income: number; trades: Trade[]; orders: Order[]; news: News[]; mon: MonRow[];
 };
-const EMPTY: TM = { started: false, bk: false, m: 0, bench: BENCH, unemp: 4, cprM: 1, sevAdd: 0, mkt: [0, 0, 0], orig: [0, 0, 0], hist: [], cash: 1e7, pos: [0, 0, 0], avg: [0, 0, 0], realized: 0, income: 0, trades: [], orders: [], news: [] };
+const EMPTY: TM = { started: false, bk: false, m: 0, bench: BENCH, unemp: 4, cprM: 1, sevAdd: 0, mkt: [0, 0, 0], orig: [0, 0, 0], hist: [], cash: 1e7, pos: [0, 0, 0], avg: [0, 0, 0], realized: 0, income: 0, trades: [], orders: [], news: [], mon: [] };
 const MAX_LONG = 20, MAX_SHORT = -5;
-const STAGE_SHORT: [string, string][] = [["Collateral pool", "pick your basket"], ["Market participants", "meet the players"], ["Build the pool", "fill the basket"], ["Tranches", "build the floors"], ["Get rated", "get graded"], ["Price & place", "sell the floors"], ["Secondary trading", "the trading floor"], ["Stress test", "storm test"]];
+const STAGE_SHORT: [string, string][] = [["Collateral pool", "pick your basket"], ["Market participants", "meet the players"], ["Build the pool", "fill the basket"], ["Tranches", "build the floors"], ["Get rated", "get graded"], ["Due diligence", "the home inspection"], ["Price & place", "sell the floors"], ["Secondary trading", "the trading floor"], ["Stress test", "storm test"]];
 const STAGE_TERMS: string[][] = [
   ["abs", "pool", "mbs", "clo", "revolving"],
   ["spv", "truesale", "bkremote", "originator", "servicer", "trustee", "underwriter"],
   ["pool", "fico", "cdr", "cpr", "sev", "el"],
   ["tranche", "senior", "mezz", "junior", "ce", "sub", "oc", "reserve", "xs", "residual"],
   ["rating", "stress", "trigger", "stepdown"],
+  ["duediligence", "datatape", "stratification", "seasoning", "concentration", "cnl", "breakeven", "breakevencdr", "pol", "shadowrating", "roll", "watchlist", "health"],
   ["spread", "bps", "benchmark", "coupon", "book", "oversub"],
-  ["secondary", "bid", "ask", "price", "mark", "pnl", "dv01", "short"],
+  ["secondary", "bid", "ask", "price", "mark", "pnl", "dv01", "short", "watchlist", "health"],
   ["stress", "waterfall", "seq", "cdr", "cpr", "sev", "earlyam"],
 ];
 const AWARD_NAME: Record<string, string> = { pool: "Built your first collateral pool", graded: "First credit ratings received" };
@@ -64,6 +69,9 @@ export default function Terminal() {
   const [graded, setGraded] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [closed, setClosed] = useState(false);
+  const [ddStep, setDdStep] = useState(-1);
+  const [ddShared, setDdShared] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [mk, setMk] = useState<TM>(EMPTY);
   const [preset, setPreset] = useState("1");
   const [custom, setCustom] = useState<number[]>([5, 10, 55]);
@@ -94,7 +102,7 @@ export default function Terminal() {
 
   useEffect(() => { document.documentElement.setAttribute("data-theme", theme); ls.set("bondlab.theme", theme); }, [theme]);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
-  useEffect(() => { setDockOpen(stage === 6 || stage === 7); }, [stage]);
+  useEffect(() => { setDockOpen(stage === 7 || stage === 8); }, [stage]);
 
   const toastId = useRef(1);
   const toast = useCallback((title: string, detail?: string, kind: Toast["kind"] = "") => {
@@ -123,7 +131,7 @@ export default function Terminal() {
   const A = ASSETS.find((x) => x.id === aid) ?? A0;
   const xp = awards.reduce((s, k) => s + (AW[k] ? AW[k][0] : 0), 0);
   const badges = awards.filter((k) => AW[k] && AW[k][1]).map((k) => AW[k][1]);
-  if (QUIZ.every((_q: Quiz, i: number) => awards.includes("q" + i)) && awards.includes("q8")) badges.push("Quiz Master");
+  if (QUIZ.every((_q: Quiz, i: number) => awards.includes("q" + i)) && awards.includes("qspv")) badges.push("Quiz Master");
   let li = 0;
   LEVELS.forEach((l, i) => { if (xp >= l[0]) li = i; });
   const nextL = LEVELS[li + 1];
@@ -134,7 +142,7 @@ export default function Terminal() {
     setAid(id); setGuar(false);
     setN(X.n[3]); setScore(X.score[3]); setApr(X.rate[3]); setTerm(X.term[3]);
     setA(X.st[0]); setB(X.st[1]); setC(X.st[2]); setRes(X.st[3]); setSpreads(X.sp.slice());
-    setGraded(false); setClosed(false); setMk(EMPTY); setPreset("1"); setMonth(1); setAuto(false); setPlaying(false);
+    setGraded(false); setClosed(false); setDdStep(-1); setDdShared(false); setReportOpen(false); setMk(EMPTY); setPreset("1"); setMonth(1); setAuto(false); setPlaying(false);
     const nt = tried.includes(id) ? tried : [...tried, id];
     setTried(nt);
     if (nt.length === ASSETS.length) award("explorer");
@@ -163,12 +171,22 @@ export default function Terminal() {
   const run = (cdr: number, cpr: number, sev: number): RunRes => runDeal(B, pool.apr, term, cdr, cpr, sev, trs, ocAmt, resAmt, opt);
   const baseRun = useMemo(() => run(baseCdr, A.cpr, sevEff), [aid, B, pool.apr, term, baseCdr, sevEff, a, b, c, res, spreads[0], spreads[1], spreads[2]]);
 
+  // ---------- credit due diligence (computed only once it is needed) ----------
+  const needDD = stage >= 5 || mk.started || reportOpen;
+  const dd: DD | null = useMemo(() => needDD ? runDD({ A, poolScore: pool.score, poolApr: pool.apr, bins: pool.bins, n: nLoans, term, baseCdr, sev: sevEff, cpr: A.cpr, gf, B, ce: cushion, grades, pcts, run }) : null,
+    [needDD, aid, B, pool.apr, pool.score, nLoans, term, baseCdr, sevEff, a, b, c, res, spreads[0], spreads[1], spreads[2], grades.join(",")]);
+  const ddDone = ddStep >= 7;
+  // uncertainty premium (extra pay for the unknown) that investors build into their bids; a shared review removes most of it (mock)
+  const uPrem = [5, 14, 35].map((x) => x * A.fairK * (1 + (dd ? dd.excRate : 0.1)));
+  const uCut = uPrem.map((x) => x * 0.6);
+  const monCtx = (s: TM, m: number): MonCtx | null => dd ? { dd, m, unemp: s.unemp, sevAdd: s.sevAdd, bk: s.bk, months: baseRun.months, B, poolScore: pool.score, sev: sevEff, uSens: A.uSens, pcts, hardCe: hard, seed: 77 + nLoans + aid.length * 13, term, baseCdr } : null;
+
   // order book
   const book = pcts.map((p, i) => {
     const size = (B * p) / 100;
     const orders = INV.map((v, j) => {
       const rr = rng(900 + i * 13 + j)();
-      const resv = FAIR[grades[i]] * A.fairK * v.mult * (0.92 + 0.16 * rr);
+      const resv = FAIR[grades[i]] * A.fairK * v.mult * (0.92 + 0.16 * rr) - (ddShared && ddDone ? uCut[i] : 0);
       const likes = v.likes.includes(grades[i]);
       const ok = likes && spreads[i] >= resv;
       return { amt: ok ? size * v.budget * A.inv[j] * (1 + Math.min(1.5, ((spreads[i] - resv) / resv) * 2)) : 0, resv, likes, ok };
@@ -180,10 +198,13 @@ export default function Terminal() {
 
   // ---------- market ----------
   const priceMids = (s: TM): number[] => {
-    const rr = run(baseCdr * Math.max(0.5, 1 + (s.unemp - 4) * A.uSens), clamp(A.cpr * s.cprM, 0, 0.6), clamp(sevEff + s.sevAdd * gf, 0, 0.98));
+    // once monitoring runs, forward defaults follow the projected lifetime loss vs. the forecast (prices react to monitoring updates)
+    const lm = s.mon.length ? s.mon[s.mon.length - 1] : null;
+    const cdrK = lm && dd ? clamp(lm.proj / dd.baseLife, 0.5, 4) : Math.max(0.5, 1 + (s.unemp - 4) * A.uSens);
+    const rr = run(baseCdr * cdrK, clamp(A.cpr * s.cprM, 0, 0.6), clamp(sevEff + s.sevAdd * gf, 0, 0.98));
     return rr.tr.map((o: TrOut, i: number) => (trs[i].size > 0 ? (pv(o.cf, s.bench + s.mkt[i] / 10000) / trs[i].size) * 100 : 100));
   };
-  const hwFor = (s: TM) => [0.0625, 0.25, 0.75].map((h) => h * A.liq * (1 + Math.max(0, s.unemp - 4) * 0.3));
+  const hwFor = (s: TM) => [0.0625, 0.25, 0.75].map((h) => h * A.liq * (1 + Math.max(0, s.unemp - 4) * 0.3) * (ddShared && ddDone ? 0.85 : 1));
   const mids = mk.started && mk.hist.length ? mk.hist[mk.hist.length - 1].px : [100, 100, 100];
   const prevMids = mk.hist.length > 1 ? mk.hist[mk.hist.length - 2].px : mids;
   const hw = hwFor(mk);
@@ -230,6 +251,8 @@ export default function Terminal() {
 
   const openMarket = (): void => {
     const s: TM = { ...EMPTY, started: true, mkt: spreads.slice(), orig: spreads.slice(), news: [{ m: 0, title: "Secondary trading open", detail: `Your ${A.name.toLowerCase()} deal has been sold. ${MM} will now quote you bids and asks (prices to sell or buy) on any tranche.` }] };
+    const c0 = monCtx(s, 0);
+    if (c0) s.mon = [monStart(c0)];
     s.hist = [{ m: 0, px: priceMids(s) }];
     setMk(s); setAuto(false);
     toast("Secondary trading open", `${MM} is quoting all three tranches.`, "good");
@@ -261,10 +284,21 @@ export default function Terminal() {
     const row = baseRun.months[s.m - 1];
     const extra = row ? ` ${nr(ev.bk ? "The backup servicer" : A.serv, "the servicer")} collected ${fm(row.collected)} from ${A.who} this month.` : "";
     const title = ev.bk ? `What-if: ${nr(A.orig, lr(A))} goes bust (hypothetical stress event)` : ev.title;
+    // monthly monitoring: refresh the pool, then let tranche health move spreads
+    const cm = monCtx(s, s.m);
+    let monNote = "";
+    if (cm && mk.mon.length) {
+      const prevRow = mk.mon[mk.mon.length - 1];
+      const row = monStep(prevRow, { ...cm, bkNew: !!ev.bk && !mk.bk });
+      s.mon = [...mk.mon, row];
+      s.mkt = s.mkt.map((v, i) => Math.max(10, v + (HEALTH_PREM[row.health[i]][i] - HEALTH_PREM[prevRow.health[i]][i]) * A.liq));
+      monNote = ` Monitoring: losses ${pc(row.actual, 2)} vs. forecast ${pc(row.forecast, 2)}; health ${row.health.map((h, i) => FLS[i].toLowerCase() + " " + h).join(", ")}.`;
+      if (row.alerts.length) { monNote += " Watchlist: " + row.alerts.join(" "); setTimeout(() => toast("Watchlist alert", row.alerts[0], "bad"), 300); }
+    }
     const px = priceMids(s);
     s.hist = [...mk.hist, { m: s.m, px }];
     const moveTone = px[2] - (mk.hist[mk.hist.length - 1]?.px[2] ?? px[2]);
-    s.news = [{ m: s.m, title, detail: detail + extra, tone: (moveTone >= 0 ? "good" : "bad") as "good" | "bad" }, ...mk.news].slice(0, 30);
+    s.news = [{ m: s.m, title, detail: detail + extra + monNote, tone: (moveTone >= 0 ? "good" : "bad") as "good" | "bad" }, ...mk.news].slice(0, 30);
     // working limit orders
     const left: Order[] = [];
     for (const o of s.orders) {
@@ -287,7 +321,7 @@ export default function Terminal() {
   const nmRef = useRef(nextMonth);
   nmRef.current = nextMonth;
   useEffect(() => {
-    if (!auto || stage !== 6 || !mk.started) return;
+    if (!auto || stage !== 7 || !mk.started) return;
     const t = setInterval(() => nmRef.current(), 2600);
     return () => clearInterval(t);
   }, [auto, stage, mk.started]);
@@ -350,7 +384,7 @@ export default function Terminal() {
   // ---------- book-building animation ----------
   const bookKey = `${aid}|${spreads.join(",")}|${grades.join(",")}|${stage}`;
   useEffect(() => {
-    if (stage !== 5) return;
+    if (stage !== 6) return;
     const t0 = performance.now();
     let raf = 0;
     const step = (t: number) => { const k = Math.min(1, (t - t0) / 1500); setBookT(k); if (k < 1) raf = requestAnimationFrame(step); };
@@ -361,8 +395,8 @@ export default function Terminal() {
 
   // ---------- navigation + locks ----------
   const lockReason = (i: number): string | null => {
-    if (i === 5 && !graded) return "Get rated first (step 5).";
-    if ((i === 6 || i === 7) && !closed) return "Price and close the deal first (step 6).";
+    if ((i === 5 || i === 6) && !graded) return "Get rated first (step 5).";
+    if ((i === 7 || i === 8) && !closed) return "Price and close the deal first (step 7).";
     return null;
   };
   const setStage = (n: number): void => {
@@ -373,6 +407,14 @@ export default function Terminal() {
     document.querySelector(".main")?.scrollTo({ top: 0 });
   };
   const answer = (i: number): void => { setQuiz({ ...quiz, [stage]: i }); if (i === QUIZ[stage].ok) award("q" + stage); };
+  // due diligence actions
+  const runDiligence = (): void => {
+    setDdStep(0);
+    let k = 0;
+    const t = setInterval(() => { k += 1; setDdStep(k); if (k >= 7) { clearInterval(t); award("dd"); toast("Due diligence complete", "Tranche review report ready (mock analysis).", "good"); } }, 260);
+  };
+  const shareReport = (): void => { if (!ddDone) { toast("Run due diligence first", "Step 6 builds the tranche review report.", "bad"); return; } setDdShared(true); award("ddshare"); toast("Report shared with investors", "Less uncertainty: investors trim the extra pay they ask for (mock).", "good"); };
+  const openReport = (): void => { if (!dd) return; setReportOpen(true); if (mk.started && mk.mon.some((r) => r.alerts.length) && mk.m >= 3) award("watch"); };
   const PL = playersFor(A);
   // ---- ownership tracker (who legally owns the loans / the bonds at each moment) ----
   const [own, setOwn] = useState(0);
@@ -421,8 +463,9 @@ export default function Terminal() {
       case 2: return gf < 1 ? "With the government promise switched on, losses almost vanish. The real risks become prepayment (early payoffs) and interest rates." : pool.score < 640 ? "A riskier collateral pool: higher rates, but more borrowers will default (stop paying). You'll need more credit enhancement (a thicker cushion) when you structure the tranches." : pool.score > 750 ? "A very safe collateral pool. Few losses expected, but low rates mean little excess spread (leftover interest)." : "Try moving the credit score slider and watch expected net loss change.";
       case 3: return grades[0] !== "AAA" ? "Your senior tranche (top floor) isn't AAA yet. Add subordination (thicker floors below it), more overcollateralization (padding), or a bigger reserve account (rainy-day fund). Watch the red stress lines." : oc < 3 ? "Senior tranche is AAA. Careful: very little overcollateralization (padding) means the residual (owner's leftover money) disappears fast if losses rise." : "Nice. The senior tranche (top floor) sits above the AAA stress line. Junior tranches pay more because they sit closer to the water. Drag the white handles on the capital stack to resize tranches.";
       case 4: return graded ? `The rating agencies have spoken. Senior tranche: ${gname(grades[0])}. Change tranche sizes in step 4 and come back to try for a better rating.` : "Press the button to send your deal to the rating agencies. They run stress tests (storms several times worse than expected) and check which tranches (floors) stay dry.";
-      case 5: return closed ? `Deal sold! ${nr(A.orig, lr(A))} has its cash. Next, see how your tranches trade in the secondary market (afterwards).` : !allCovered ? "At least one tranche is undersubscribed (fewer orders than bonds for sale). Offer a wider spread (a bit more extra pay) on it." : book.some((x) => x.cover > 2.5) ? "Every tranche is covered, but some are hugely oversubscribed. You could tighten the spread (offer less extra pay)." : "Every tranche is covered at a sensible level. Price and close the deal!";
-      case 6: return !mk.started ? "Open secondary trading, then press Next month (N) to let time pass. Buy tranches you think will rise, sell ones you think will fall." : A.refi > 0.2 ? "MBS tip: rate cuts trigger refinancing, so prepayments (early payoffs) jump. Watch what that does to prices above 100." : "Tip: bad economic news hits junior tranches hardest; benchmark rate rises dent everything a little. Holding bonds also earns monthly coupon interest. Press B to buy, S to sell, N for next month.";
+      case 5: return !ddDone ? "Before pricing, inspect the deal like a home inspector: press Run due diligence to check the data tape, slice the pool, forecast losses and grade each tranche yourself (a shadow rating)." : dd && dd.tr.some((t) => t.notch < 0) ? "At least one tranche looks more generously graded than your own analysis says. Investors will notice: share the report, and consider more spread or a thicker cushion (step 4)." : ddShared ? "Report shared. Investors can now price the risk itself instead of the unknown, so they ask for less extra pay. Next: price and place the bonds." : "Your shadow ratings match or beat the agencies. Share the tranche review report with investors to cut their uncertainty premium (extra pay for the unknown).";
+      case 6: return closed ? `Deal sold! ${nr(A.orig, lr(A))} has its cash. Next, see how your tranches trade in the secondary market (afterwards).` : !allCovered ? "At least one tranche is undersubscribed (fewer orders than bonds for sale). Offer a wider spread (a bit more extra pay) on it." : book.some((x) => x.cover > 2.5) ? "Every tranche is covered, but some are hugely oversubscribed. You could tighten the spread (offer less extra pay)." : "Every tranche is covered at a sensible level. Price and close the deal!";
+      case 7: return !mk.started ? "Open secondary trading, then press Next month (N) to let time pass. Buy tranches you think will rise, sell ones you think will fall." : A.refi > 0.2 ? "MBS tip: rate cuts trigger refinancing, so prepayments (early payoffs) jump. Watch what that does to prices above 100." : "Tip: bad economic news hits junior tranches hardest; benchmark rate rises dent everything a little. Holding bonds also earns monthly coupon interest. Press B to buy, S to sell, N for next month.";
       default: return sRun.early > 0 ? `The early amortization trigger (tripwire) fired in month ${sRun.early}: refilling stopped and every repaid dollar went to investors.` : sRun.tr[0].loss > 1 ? "Ouch: even the senior tranche lost money in this stress test, like many 'AAA' home-loan bonds in 2008. Try more credit enhancement in step 4." : sRun.tr[2].loss > 1 ? "The storm reached the junior tranche, but the senior tranche stayed dry. That's subordination doing its job." : "Every tranche was paid in full. Try a harsher stress scenario. Press play to watch the waterfall month by month.";
     }
   })();
@@ -432,7 +475,8 @@ export default function Terminal() {
     { sel: "", title: "Welcome to Bond Lab", body: "You'll build an asset-backed security (a bond paid by a basket of loans) from scratch, then sell it and trade it. Real company names appear for realism only; every deal, price and number is made up for practice, and no affiliation or endorsement is implied. This 30-second tour shows you around." },
     { sel: "mode", title: "Two modules", body: "Deal Lab (this one) builds and trades a deal. Exchange Builder lets you design a new marketplace for these bonds: who does what, who gets paid how. Switch here any time, or press X." },
     { sel: "topbar", title: "Top bar: your desk at a glance", body: "The deal you're building, the asset class, your mock cash, your P&L (profit or loss), your XP level and a live clock. Market month shows how much simulated time has passed." },
-    { sel: "rail", title: "Steps of a real deal", body: "The 8 steps run from selecting the collateral pool (picking the basket of loans) to the stress test (storm test). A lock means an earlier step has to be finished first." },
+    { sel: "rail", title: "Steps of a real deal", body: "The 9 steps run from selecting the collateral pool (picking the basket of loans) to the stress test (storm test). A lock means an earlier step has to be finished first." },
+    { sel: "", title: "Credit due diligence and monitoring", body: "Step 6 is the home inspection: before pricing, you check the loan data, forecast losses and grade every tranche yourself in a tranche review report you can print or share with investors. Once trading starts, the review refreshes every month with mock credit data, and tranche health (green, amber, red) moves prices." },
     { sel: "workspace", title: "Your workspace", body: "Each step has its own tools: sliders, a draggable capital stack, a live order book, a trading screen. Dotted words are industry terms: hover or tap them for a plain-English explanation." },
     { sel: "coach", title: "Coach and dictionary", body: "The coach tells you what to do next, teaches the key terms for each step, and has a quick check quiz for XP. The dictionary tab lists every term. Hide this panel with C." },
     { sel: "tape", title: "News tape and blotter", body: "Market news scrolls along the tape. Underneath, the trade blotter (your trade log), working orders and news wire keep a record of everything." },
@@ -468,7 +512,7 @@ export default function Terminal() {
     if (el2 && (el2.tagName === "TEXTAREA" || el2.tagName === "SELECT" || (el2.tagName === "INPUT" && (el2 as HTMLInputElement).type !== "range"))) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
-    if (k === "Escape") { setHelp(false); if (tour >= 0) endTour(); return; }
+    if (k === "Escape") { setHelp(false); setReportOpen(false); if (tour >= 0) endTour(); return; }
     if (tour >= 0) {
       if (k === "ArrowRight") { if (tour === TOUR.length - 1) endTour(); else setTour(tour + 1); }
       else if (k === "ArrowLeft" && tour > 0) setTour(tour - 1);
@@ -488,14 +532,14 @@ export default function Terminal() {
     }
     if (k === "]") { setStage(stage + 1); return; }
     if (k === "[") { setStage(stage - 1); return; }
-    if (/^[1-8]$/.test(k)) { setStage(Number(k) - 1); return; }
-    if (stage === 6 && mk.started) {
+    if (/^[1-9]$/.test(k)) { setStage(Number(k) - 1); return; }
+    if (stage === 7 && mk.started) {
       if (k === "b" || k === "B") { submit("Buy"); return; }
       if (k === "s" || k === "S") { submit("Sell"); return; }
       if (k === "n" || k === "N") { nextMonth(); return; }
       if (k === "p" || k === "P") { setAuto((x) => !x); return; }
     }
-    if (stage === 7) {
+    if (stage === 8) {
       if (k === "p" || k === "P") { if (mNow >= term) setMonth(1); setPlaying((x) => !x); return; }
       if (k === "n" || k === "N") { setMonth((m) => Math.min(term, m + 1)); return; }
     }
@@ -679,7 +723,7 @@ export default function Terminal() {
         </Panel>
       </div>
       <Panel title="Quick check: the special purpose vehicle, SPV (walled-off box)">
-        <QuizBlock q={QUIZ_SPV} ans={quiz[8]} onAns={(i) => { setQuiz({ ...quiz, 8: i }); if (i === QUIZ_SPV.ok) award("q8"); }} />
+        <QuizBlock q={QUIZ_SPV} ans={quiz[99]} onAns={(i) => { setQuiz({ ...quiz, 99: i }); if (i === QUIZ_SPV.ok) award("qspv"); }} />
       </Panel>
     </>
   );
@@ -774,6 +818,24 @@ export default function Terminal() {
     </>
   );
 
+  const rctx = (withMon: boolean): ReportCtx | null => dd ? { A, dd, mon: withMon && mk.mon.length ? mk.mon[mk.mon.length - 1] : undefined, sizes: trs.map((t) => t.size), pcts, B, n: nLoans, score: pool.score, shared: ddShared } : null;
+  const SDD = (): ReactNode => !dd ? null : (
+    <>
+      <DDStage A={A} dd={dd} step={ddStep} onRun={runDiligence} shared={ddShared} onShare={shareReport} onReport={openReport} mon={mk.mon} started={mk.started} pcts={pcts} B={B} n={nLoans} score={pool.score} goTrade={() => setStage(7)} prem={uPrem} premCut={uCut} />
+      {ddDone && mk.started && mk.mon.length > 0 && <div style={{ marginTop: 12 }}><MonitorPanel dd={dd} mon={mk.mon} onReport={openReport} sizes={trs.map((t) => t.size)} /></div>}
+    </>
+  );
+  const printReport = (): void => { const r = rctx(true); if (!r) return; const w = window.open("", "_blank"); if (!w) { toast("Pop-up blocked", "Allow pop-ups for this site, or download the PNG.", "bad"); return; } w.document.open(); w.document.write(reportHTML(r)); w.document.close(); };
+  const pngReport = async (): Promise<void> => {
+    const r = rctx(true); if (!r) return;
+    const blob = await reportPNG(r);
+    if (!blob) { toast("Could not draw the image", undefined, "bad"); return; }
+    const url = URL.createObjectURL(blob); const el = document.createElement("a");
+    el.href = url; el.download = `tranche-review-${A.id}${r.mon && r.mon.m > 0 ? "-m" + r.mon.m : ""}.png`; document.body.appendChild(el); el.click(); el.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast("PNG downloaded", `${Math.round(blob.size / 1024)} KB image of the tranche review report`, "good");
+  };
+
   const closeDeal = (): void => {
     setClosed(true); award("closed");
     if (book.every((x) => x.cover <= 2.5)) award("sweet");
@@ -793,14 +855,14 @@ export default function Terminal() {
           <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
             <button className="btn primary lg" disabled={!allCovered || closed} onClick={closeDeal}>{closed ? "\u2713 Deal priced and closed" : "Price and close the deal"}</button>
             {closed && <button className="btn" onClick={() => setClosed(false)}>Reopen to re-price</button>}
-            {closed && <button className="btn" onClick={() => setStage(6)}>Go to the trading floor {"\u2192"}</button>}
+            {closed && <button className="btn" onClick={() => setStage(7)}>Go to the trading floor {"\u2192"}</button>}
           </div>
         </Panel>
         <Panel title="Live order book (investors calling in)" tight right={<span className="dim">{DEALER.split(" (")[0]} book-building</span>}>
           <div className="book-row" style={{ fontSize: 10.5, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".05em" }}><span>Investor</span><span>Senior</span><span>Mezzanine</span><span>Junior</span></div>
           {INV.map((v, j) => (
             <div key={v.name} className="book-row">
-              <span title={v.type}><b style={{ fontWeight: 650 }}>{v.name}</b><br /><span className="dim" style={{ fontSize: 11 }}>{v.type.split(":")[0]}</span></span>
+              <span title={v.type}><b style={{ fontWeight: 650 }}>{v.name}</b><br /><span className="dim" style={{ fontSize: 11 }}>{v.type.split(":")[0]}{ddShared && ddDone ? " \u00b7 read the report" : " \u00b7 asked for the report"}</span></span>
               {[0, 1, 2].map((i) => {
                 const o = book[i].orders[j];
                 const w = o.ok && book[i].size > 0 ? Math.min(100, (o.amt / book[i].size) * 100 * fillFrac(j)) : 0;
@@ -813,6 +875,7 @@ export default function Terminal() {
               })}
             </div>
           ))}
+          <div className="p dim" style={{ padding: "8px 12px 0" }}>{ddShared && ddDone ? <span>{"\u2713"} Every investor has read your tranche review report, so bids include less uncertainty premium (extra pay for the unknown): about {uCut.map((x, i) => `${FLS[i].toLowerCase()} \u2212${x.toFixed(0)} bps`).join(", ")} (mock).</span> : <span>Investors are asking for the tranche review report. Without it they add an uncertainty premium (extra pay for the unknown) of about {uPrem.map((x, i) => `${FLS[i].toLowerCase()} +${x.toFixed(0)} bps`).join(", ")} (mock). <button className="btn sm" onClick={() => (ddDone ? shareReport() : setStage(5))}>{ddDone ? "Share the report" : "Run due diligence (step 6)"}</button></span>}</div>
           <div className="p dim" style={{ padding: "8px 12px" }}>{DEALER} is <Term k="book">book-building (taking orders)</Term>. Aim for 1x to 2.5x <Term k="oversub">oversubscription (orders vs. supply)</Term> on every tranche.</div>
         </Panel>
       </div>
@@ -835,6 +898,7 @@ export default function Terminal() {
     </div>
   ) : (
     <>
+      {dd && mk.mon.length > 0 && <div style={{ marginBottom: 12 }}><MonitorStrip mon={mk.mon} dd={dd} onReport={openReport} onFull={() => setStage(5)} /></div>}
       <div className="metrics" style={{ marginBottom: 12 }}>
         <Metric k="Cash" v={fm(mk.cash)} />
         <Metric k={<Term k="mark">Mark-to-market</Term>} v={fm(holdVal)} d="holdings worth today" />
@@ -936,6 +1000,7 @@ export default function Terminal() {
             <Slider label={<Term k="sev" />} value={sv[2]} min={0} max={98} step={1} fmt={(v) => `${v}%`} onChange={(v) => setSv(2, v)} />
           </div>
         </Panel>
+        {dd && dd.tr[0].size > 0 && <div className="p dim" style={{ marginTop: 10 }}>From your due diligence (step 6): the senior tranche breaks even at {dd.tr[0].beCapped ? "more than " : ""}{dd.tr[0].beCdr.toFixed(1)}% CDR a year, the junior at {dd.tr[2].beCapped ? "more than " : ""}{dd.tr[2].beCdr.toFixed(1)}%. This storm uses {sv[0].toFixed(1)}%.</div>}
         <div className="metrics" style={{ margin: "12px 0" }}>
           {[0, 1, 2].map((i) => { const o = sRun.tr[i]; const lp = trs[i].size > 0 ? (o.loss / trs[i].size) * 100 : 0; return <Metric key={i} k={<span><span className="sw" style={{ background: TC[i] }} />{FLS[i]} tranche</span>} v={lp < 0.01 ? "Paid in full" : `Lost ${pc(lp)}`} tone={lp < 0.01 ? "up" : lp < 50 ? "amber" : "down"} d={`WAL ${o.wal.toFixed(1)} yrs`} />; })}
           <Metric k="Collateral losses" v={fm(sRun.poolLoss)} d={pc((sRun.poolLoss / B) * 100) + " of the basket"} tone="down" />
@@ -976,12 +1041,12 @@ export default function Terminal() {
   };
 
   // ================= shell =================
-  const screens = [S0, S1, S2, S3, S4, S5, S6, S7];
+  const screens = [S0, S1, S2, S3, S4, SDD, S5, S6, S7];
   const tape: { t: string; d: string; tone?: string }[] = mk.started
     ? [...[0, 1, 2].map((i) => { const tk = tick(i); return { t: `${A.tk.toUpperCase()} ${FLS[i].toUpperCase()} ${mids[i].toFixed(2)}`, d: (tk.ch >= 0 ? "\u25b2" : "\u25bc") + Math.abs(tk.ch).toFixed(2), tone: tk.cls }; }), { t: "BENCHMARK", d: pc(mk.bench * 100, 2) }, { t: "UNEMPLOYMENT", d: pc(mk.unemp) }, ...mk.news.slice(0, 5).map((n) => ({ t: `M${n.m}`, d: n.title, tone: n.tone === "bad" ? "down" : n.tone === "good" ? "up" : "" }))]
     : [{ t: "BOND LAB", d: "Practice desk: real names for realism only; every deal, price and data point is made up; no affiliation or endorsement" }, { t: "DEAL", d: A.trust }, { t: "ASSET", d: proName(A) }, { t: "POOL", d: fm(B) }, { t: "EXPECTED NET LOSS", d: pc(el, 2) }, { t: "SENIOR", d: `${a}% \u00b7 ${gname(grades[0])}` }, { t: "STATUS", d: closed ? "Priced and closed" : graded ? "Rated, ready to price" : "Structuring" }];
   const dictKeys = Object.keys(G).filter((k) => { const q = dictQ.trim().toLowerCase(); return !q || G[k].some((s) => s.toLowerCase().includes(q)); }).sort((x, y) => G[x][0].localeCompare(G[y][0]));
-  const stageDone = (i: number) => i < maxSeen || (i === 4 && graded) || (i === 5 && closed);
+  const stageDone = (i: number) => i < maxSeen || (i === 4 && graded) || (i === 5 && ddDone) || (i === 6 && closed);
   const hd = STAGE_SHORT[stage];
 
   const coachPanel = (
@@ -1023,7 +1088,7 @@ export default function Terminal() {
   const ordersTab = mk.orders.length === 0 ? <div className="empty">No working limit orders. Choose Limit on the order ticket to rest one.</div> : (
     <Tbl right={[3, 4]} cols={["Placed", "Side", "Tranche (floor)", "Size", "Limit", ""]} rows={mk.orders.map((o) => [`M${o.m}`, <span key={o.id} className={o.side === "Buy" ? "up" : "down"}>{o.side}</span>, FL[o.fl], `$${o.size}M`, o.limit.toFixed(2), <button key={"c" + o.id} className="btn sm" onClick={() => { setMk({ ...mk, orders: mk.orders.filter((x) => x.id !== o.id) }); toast("Order cancelled"); }}>Cancel</button>])} />
   );
-  const newsTab = mk.news.length === 0 ? <div className="empty">The news wire starts when secondary trading opens (step 7).</div> : (
+  const newsTab = mk.news.length === 0 ? <div className="empty">The news wire starts when secondary trading opens (step 8).</div> : (
     <div className="rows" style={{ padding: "0 12px" }}>{mk.news.map((n, i) => <div key={i} className="rw rw-lead"><div className="ld num">M{n.m}</div><div><div className={"tt " + (n.tone === "bad" ? "down" : n.tone === "good" ? "up" : "")}>{n.title}</div><div className="dd">{n.detail}</div></div></div>)}</div>
   );
 
@@ -1061,7 +1126,7 @@ export default function Terminal() {
       </header>
 
       <nav className="rail" data-tour="rail" aria-label="Deal steps">
-        <div className="rail-h"><span>{isX ? "Exchange design" : "Deal workflow"}</span><span>{isX ? `${X.maxSeen + 1}/${STAGES_X.length}` : `${Math.min(maxSeen + 1, 8)}/8`}</span></div>
+        <div className="rail-h"><span>{isX ? "Exchange design" : "Deal workflow"}</span><span>{isX ? `${X.maxSeen + 1}/${STAGES_X.length}` : `${Math.min(maxSeen + 1, STAGES.length)}/${STAGES.length}`}</span></div>
         {isX && STAGES_X.map((s, i) => (
           <button key={s} className={"stage-btn" + (i === X.stage ? " on" : "") + (i < X.maxSeen && i !== X.stage ? " done" : "")} onClick={() => X.setStage(i)} aria-current={i === X.stage ? "step" : undefined} title={s} aria-label={`Step ${i + 1}: ${s}`}>
             <span className="n">{i < X.maxSeen && i !== X.stage ? "\u2713" : i + 1}</span>
@@ -1101,10 +1166,10 @@ export default function Terminal() {
         <div className="m-only" style={{ marginTop: 16 }}><Panel title={`Quick check: step ${X.stage + 1}`}><QuizBlock q={X.quiz} ans={X.quizAns} onAns={X.answer} /></Panel></div>
         </> : <>
         <div className="ws-head">
-          <div><div className="crumb">Step {stage + 1} of 8 {"\u00b7"} {proName(A)}</div><h1>{STAGES[stage]}</h1></div>
+          <div><div className="crumb">Step {stage + 1} of {STAGES.length} {"\u00b7"} {proName(A)}</div><h1>{STAGES[stage]}</h1></div>
           <div style={{ display: "flex", gap: 6 }}>
             <button className="btn sm" disabled={stage === 0} onClick={() => setStage(stage - 1)} aria-label="Previous step">{"\u2190"} <span className="kbd">[</span></button>
-            <button className="btn sm" disabled={stage === 7} onClick={() => setStage(stage + 1)} aria-label="Next step"><span className="kbd">]</span> {"\u2192"}</button>
+            <button className="btn sm" disabled={stage === STAGES.length - 1} onClick={() => setStage(stage + 1)} aria-label="Next step"><span className="kbd">]</span> {"\u2192"}</button>
           </div>
         </div>
         <div className="m-only callout" style={{ marginBottom: 12 }}><div className="cl">Coach</div>{coach}</div>
@@ -1147,7 +1212,7 @@ export default function Terminal() {
           <div className="modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
             <div className="modal-h"><h3>Keyboard shortcuts</h3><button className="icon-btn" onClick={() => setHelp(false)} aria-label="Close">{"\u2715"}</button></div>
             <div className="modal-b keys">
-              {[["?", "Show or hide this help"], ["Esc", "Close dialogs"], ["[  ]", "Previous / next step"], ["1 \u2013 8", "Jump to a step (also in Exchange Builder)"], ["T", "Light / dark mode"], ["X", "Switch module: Deal Lab / Exchange Builder"], ["G", "Replay the guided tour (also the Replay tour button in the top bar)"], ["\u2190 \u2192", "Back / next while the tour is open"], ["C", "Show / hide the coach panel"], ["D", "Open the dictionary"], ["B / S", "Buy / sell on the trading floor (step 7)"], ["N", "Next month (trading) or next waterfall month (stress test)"], ["P", "Auto-advance (trading) or play / pause (stress test)"]].map(([k, d]) => [<span key={k} className="kbd">{k}</span>, <span key={d}>{d}</span>])}
+              {[["?", "Show or hide this help"], ["Esc", "Close dialogs"], ["[  ]", "Previous / next step"], ["1 \u2013 9", "Jump to a step (1 \u2013 8 in Exchange Builder)"], ["T", "Light / dark mode"], ["X", "Switch module: Deal Lab / Exchange Builder"], ["G", "Replay the guided tour (also the Replay tour button in the top bar)"], ["\u2190 \u2192", "Back / next while the tour is open"], ["C", "Show / hide the coach panel"], ["D", "Open the dictionary"], ["B / S", "Buy / sell on the trading floor (step 8)"], ["N", "Next month (trading) or next waterfall month (stress test)"], ["P", "Auto-advance (trading) or play / pause (stress test)"]].map(([k, d]) => [<span key={k} className="kbd">{k}</span>, <span key={d}>{d}</span>])}
             </div>
             <div className="modal-b" style={{ borderTop: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
@@ -1162,6 +1227,20 @@ export default function Terminal() {
           </div>
         </div>
       )}
+
+      {reportOpen && dd && (() => { const r = rctx(true); return r && (
+        <div className="scrim" onClick={() => setReportOpen(false)}>
+          <div className="modal report-modal" role="dialog" aria-modal="true" aria-label="Tranche review report" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-h"><h3>Tranche review report</h3><button className="icon-btn" onClick={() => setReportOpen(false)} aria-label="Close">{"\u2715"}</button></div>
+            <div className="modal-b"><ReportBody r={r} /></div>
+            <div className="modal-b report-actions">
+              <button className="btn sm primary" onClick={printReport}>Print or save as PDF</button>
+              <button className="btn sm" onClick={() => { void pngReport(); }}>Download PNG</button>
+              {!ddShared && <button className="btn sm" onClick={shareReport}>Share with investors</button>}
+              <button className="btn sm" onClick={() => setReportOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>); })()}
 
       {tc && (
         <>
