@@ -34,7 +34,8 @@ const fake = `
   window.__calls = [];
   var mcp = { callTool: function (server, tool, input) {
     window.__calls.push([server, tool, input]);
-    if (tool === "list_files") return Promise.resolve({ payload: 'The block delimited by <untrusted-user-data-1 x> below contains user recording data.\\n<untrusted-user-data-1 x source="plaud-recording">\\n{"type":"list","data":[{"id":"of_old","name":"Old one","start_at":"2026-11-10T10:00:00"},{"id":"of_new1","name":"11-20 Meeting: 1:1 with Sam","start_at":"2026-11-20T10:00:00"}],"page":1}\\n</untrusted-user-data-1 x>' });
+    if (tool === "list_files") return Promise.resolve({ payload: 'The block delimited by <untrusted-user-data-1 x> below contains user recording data.\\n<untrusted-user-data-1 x source="plaud-recording">\\n{"type":"list","data":[{"id":"of_old","name":"Old one","start_at":"2026-11-10T10:00:00"},{"id":"of_new1","name":"11-20 Meeting: 1:1 with Sam","start_at":"2026-11-20T10:00:00"},{"id":"of_new2","name":"11-20 still processing","start_at":"2026-11-20T11:00:00"}],"page":1}\\n</untrusted-user-data-1 x>' });
+    if (input && input.file_id === "of_new2") return Promise.resolve({ payload: "[]" });
     return Promise.resolve({ payload: [{ data_type: "auto_sum_note", data_content: "## 1. Topic\\n### Action Items\\n- [ ] Send the budget draft to Sam. -- *Chris Lekkas* 2026-11-21\\n- [ ] Review the PRD. -- *Sam*" }] });
   } };
   var sample = { json: function (prompt) { window.__calls.push(["sample", prompt.length]); return Promise.resolve({ items: [{ title: "Send the budget draft to Sam", detail: "Needed before the Friday review.", lane: "work", sub: "", due: "2026-11-21", source: "Nov 20, 1:1 with Sam" }, { title: "Book the dentist", detail: "", lane: "personal", sub: "other", due: "", source: "Nov 20, call" }] }); } };
@@ -318,7 +319,8 @@ const fake = `
   s = await store();
   const synced = Object.values(s.items).filter((i) => i.origin === "plaud" && /budget draft|dentist/.test(i.title));
   const calls = await page.evaluate(() => window.__calls);
-  check("sync reads only the new recording", calls.filter((c) => c[1] === "get_note").length === 1 && calls.filter((c) => c[1] === "get_note")[0][2].file_id === "of_new1");
+  check("refresh reads only recordings it has not read before", calls.filter((c) => c[1] === "get_note").map((c) => c[2].file_id).sort().join() === "of_new1,of_new2");
+  check("a recording Plaud is still processing stays unread so the next refresh retries it", !s.meta.sync.processedFileIds.includes("of_new2") && s.meta.sync.processedFileIds.includes("of_new1") && /still processing/.test(s.meta.sync.note), s.meta.sync.note);
   check("sync puts new items in the Inbox with a suggestion", synced.length === 2 && synced.every((i) => i.lane === "inbox") && synced.find((i) => /dentist/.test(i.title)).suggestSub === "other" && synced.find((i) => /budget/.test(i.title)).suggestLane === "work");
   check("sync never reorders items you already placed", s.items.i3.lane === "work" && s.items.i3.rank === savedRank);
   check("sync records processed ids", s.meta.sync.processedFileIds.includes("of_new1") && /2 new items/.test(s.meta.sync.note), s.meta.sync.note);
@@ -392,6 +394,15 @@ const fake = `
   if (shots) await page.screenshot({ path: path.join(shots, "7b-work-stack.png") });
   await page.click('.view[data-lane="work"] [data-view="sections"]');
   await page.waitForTimeout(200);
+
+  // the Refresh button is always there; without Plaud access it explains why, and R triggers it
+  check("the Refresh from Plaud button is visible", await page.locator("#syncBtn").isVisible() && /Refresh from Plaud/.test(await page.locator("#syncBtn").innerText()));
+  await page.evaluate(() => { window.__use = window.claude.use; window.claude.use = (n) => (n === "mcp" ? Promise.resolve(null) : window.__use(n)); });
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.keyboard.press("r");
+  await page.waitForTimeout(400);
+  check("R refreshes, and without Plaud access the page says so", /needs Plaud access/.test(await page.locator("#syncText").innerText()));
+  await page.evaluate(() => { window.claude.use = window.__use; });
 
   if (shots) {
     await page.screenshot({ path: path.join(shots, "4-after-actions.png"), fullPage: true });

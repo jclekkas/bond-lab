@@ -95,6 +95,9 @@ h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.12rem; let
 .btn:disabled { opacity: .55; cursor: default; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.1); }
+#syncBtn { display: inline-flex; align-items: center; gap: 7px; }
+#syncBtn.busy svg { display: none; }
+#syncBtn.busy::before { margin-right: 0; }
 .btn.busy::before { content: ""; display: inline-block; width: 11px; height: 11px; margin-right: 7px; vertical-align: -1px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .btn.quiet { background: transparent; border-color: transparent; color: var(--muted); }
@@ -290,7 +293,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       <div><h1>Chris Lekkas's Claude Action Items</h1><div class="tagline">From your Plaud recordings to your priorities</div></div>
     </div>
     <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="search" type="text" placeholder="Search items" autocomplete="off" aria-label="Search items"><kbd>/</kbd></label>
-    <div class="sync"><span class="pill"><span class="dot none" id="syncDot"></span><span id="syncText">Loading your items</span></span><button class="btn" id="syncBtn" hidden>Sync now</button><button class="btn primary" id="addBtn">+ Add task</button></div>
+    <div class="sync"><span class="pill"><span class="dot none" id="syncDot"></span><span id="syncText">Loading your items</span></span><button class="btn" id="syncBtn" title="Pull new action items from Plaud (R)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Refresh from Plaud</button><button class="btn primary" id="addBtn">+ Add task</button></div>
   </header>
 
   <section class="stats" id="stats" aria-label="Summary"></section>
@@ -313,7 +316,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       <button type="button" data-src="plaud"><svg width="12" height="11" viewBox="0 0 22 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8v4M8 4v12M13 7v6M18 9v2"/></svg>From Plaud <b id="n-plaud"></b></button>
       <button type="button" data-src="manual"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Added by me <b id="n-manual"></b></button>
     </div>
-    <span class="hint kbd">Press N to add a task, / to search</span>
+    <span class="hint kbd">Press N to add a task, / to search, R to refresh from Plaud</span>
   </div>
 
   <div class="lanes" id="lanesBox">
@@ -626,7 +629,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     var d = new Date(meta.lastSyncAt), stale = (Date.now() - d.getTime()) > 8 * 3600 * 1000;
     dot.className = "dot" + (stale ? " stale" : "");
     var when = (new Date().toDateString() === d.toDateString() ? "today" : fmtDay(d)) + " " + fmtTime(d);
-    txt.textContent = (stale ? "Last Plaud check " : "Checked Plaud ") + when + (meta.note ? ". " + meta.note : "") + (stale ? ". Press Sync now." : "");
+    txt.textContent = (stale ? "Last Plaud check " : "Checked Plaud ") + when + (meta.note ? ". " + meta.note : "") + (stale ? ". Press Refresh." : "");
   }
 
   /* ---------- writes ---------- */
@@ -658,6 +661,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     if (e.key === "Escape" && !$("composer").hidden) { closeComposer(); }
     else if (e.key === "/" && !typing) { e.preventDefault(); $("search").focus(); }
     else if ((e.key === "n" || e.key === "N") && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); openComposer(null); }
+    else if ((e.key === "r" || e.key === "R") && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); syncNow(); }
     else if (e.key === "Escape" && e.target === $("search")) { $("search").value = ""; q = ""; $("search").blur(); render(); }
   });
 
@@ -918,27 +922,32 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     var mcp, sample, failed = false;
     Promise.all([window.claude.use("mcp"), window.claude.use("sample")]).then(function (r) {
       mcp = r[0]; sample = r[1];
-      if (!mcp || !sample) throw { friendly: "Sync needs connector access in this view. The scheduled refresh still runs." };
-      var from = new Date(Date.now() - 3 * 86400000);
-      return mcp.callTool("Plaud", "list_files", { date_from: ymd(from), date_to: ymd(new Date()), page_size: 50 });
+      if (!mcp || !sample) throw { friendly: "Refresh needs Plaud access, which this view does not have. Open the board while signed in to claude.ai. The automatic refresh still runs at 8:07, 13:07 and 19:07 Eastern." };
+      var since = meta && meta.lastSyncAt ? new Date(new Date(meta.lastSyncAt).getTime() - 86400000) : new Date(Date.now() - 3 * 86400000);
+      var floor = new Date(Date.now() - 14 * 86400000); if (since < floor) since = floor;
+      return mcp.callTool("Plaud", "list_files", { date_from: ymd(since), date_to: ymd(new Date()), page_size: 50 });
     }).then(function (res) {
       var j = jsonOf(res), list = (j && (j.data || j.files || j)) || [];
       if (!Array.isArray(list)) throw { friendly: "Plaud answered in a format this page could not read." };
       var done = {}; ((meta && meta.processedFileIds) || []).forEach(function (x) { done[x] = 1; });
       var fresh = list.filter(function (f) { return f && f.id && !done[f.id]; }).slice(0, 12);
-      if (!fresh.length) return { fresh: [], notes: [] };
+      var acc = { notes: [], processed: [], pending: [] };
+      if (!fresh.length) return acc;
       setStatus("Reading " + fresh.length + " new recording" + (fresh.length === 1 ? "" : "s") + "…");
       return fresh.reduce(function (p, f) {
-        return p.then(function (acc) {
+        return p.then(function () {
           return mcp.callTool("Plaud", "get_note", { file_id: f.id }).then(function (nr) {
-            var lines = actionLines(jsonOf(nr));
-            if (lines.length) acc.push({ name: String(f.name || "").slice(0, 120), date: String(f.start_at || f.created_at || "").slice(0, 10), actions: lines });
-            return acc;
+            var tabs = jsonOf(nr);
+            // no notes yet means Plaud is still processing it: leave it unread so the next refresh tries again
+            if (!Array.isArray(tabs) || !tabs.length) { acc.pending.push(f); return; }
+            acc.processed.push(f);
+            var lines = actionLines(tabs);
+            if (lines.length) acc.notes.push({ name: String(f.name || "").slice(0, 120), date: String(f.start_at || f.created_at || "").slice(0, 10), actions: lines });
           });
         });
-      }, Promise.resolve([])).then(function (notes) { return { fresh: fresh, notes: notes }; });
+      }, Promise.resolve()).then(function () { return acc; });
     }).then(function (got) {
-      if (!got.notes.length) return { fresh: got.fresh, add: [] };
+      if (!got.notes.length) return { got: got, add: [] };
       setStatus("Sorting new action items…");
       var s = subs();
       var prompt = "You maintain a personal action-item backlog for its owner. Return JSON only, shaped {\"items\":[{\"title\":string,\"detail\":string,\"lane\":\"work\"|\"personal\",\"sub\":string,\"due\":string,\"source\":string}]}.\n" +
@@ -946,7 +955,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
         "Rules: keep only actions the owner owns or shares (skip ones owned only by others). title: short imperative, under 90 characters. detail: one or two sentences of useful context. due: YYYY-MM-DD only if a date is explicit, else empty. source: short label such as 'Nov 19, 1:1 with Rachel'. lane: your suggestion for where it belongs, 'work' for professional meetings, otherwise 'personal'. sub (personal only, else empty): one of " + JSON.stringify(s.map(function (x) { return { id: x.id, name: x.name }; })) + "; use 'other' if unsure.\n" +
         "Do NOT include anything that means the same as an already-tracked title (done and archived count as tracked). Already tracked: " + JSON.stringify(items.map(function (i) { return i.title; })) + "\n" +
         "Recordings: " + JSON.stringify(got.notes);
-      return sample.json(prompt).then(function (out) { return { fresh: got.fresh, add: (out && out.items) || [] }; });
+      return sample.json(prompt).then(function (out) { return { got: got, add: (out && out.items) || [] }; });
     }).then(function (r) {
       var s = subs(), writes = [], ranks = {};
       r.add.forEach(function (n, k) {
@@ -957,20 +966,21 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
         var id = "s_" + Date.now().toString(36) + k;
         writes.push(db.doc("items/" + id).set({ title: String(n.title).slice(0, 140), detail: String(n.detail || "").slice(0, 400), lane: "inbox", sub: "", suggestLane: lane, suggestSub: sub, due: /^\d{4}-\d{2}-\d{2}$/.test(n.due || "") ? n.due : "", source: String(n.source || "").slice(0, 120), rank: ranks.inbox++, done: false, archived: false, origin: "plaud", createdAt: new Date().toISOString() }));
       });
-      var seen = ((meta && meta.processedFileIds) || []).concat(r.fresh.map(function (f) { return f.id; })).slice(-200);
-      var note = writes.length ? (writes.length + " new item" + (writes.length === 1 ? "" : "s")) : "No new items";
+      var seen = ((meta && meta.processedFileIds) || []).concat(r.got.processed.map(function (f) { return f.id; })).slice(-200);
+      var np = r.got.pending.length;
+      var note = (writes.length ? writes.length + " new item" + (writes.length === 1 ? "" : "s") : "No new items") + (np ? ". " + np + " recording" + (np === 1 ? " is" : "s are") + " still processing at Plaud and will be read next time" : "");
       return Promise.all(writes).then(function () {
         return db.doc("meta/sync").set({ lastSyncAt: new Date().toISOString(), processedFileIds: seen, note: note });
-      }).then(function () { toast(note + " from Plaud."); });
+      }).then(function () { toast(note + "."); });
     }).catch(function (e) {
       var code = e && e.code, msg;
       if (e && e.friendly) msg = e.friendly;
       else if (code === "server_not_connected") msg = "Plaud is not connected in claude.ai. Add it under Settings, Connectors.";
       else if (code === "needs_reauth") msg = "Plaud needs to be reconnected in claude.ai Settings, Connectors.";
-      else if (code === "not_in_manifest" || code === "approval_required" || code === "consent_required") msg = "Sync needs your approval to read Plaud. Press Sync now and allow it.";
+      else if (code === "not_in_manifest" || code === "approval_required" || code === "consent_required") msg = "Refresh needs your approval to read Plaud. Press Refresh from Plaud and allow it.";
       else if (code === "not_granted") msg = "Sample access was declined, so new items could not be sorted.";
-      else msg = "Sync failed" + (code ? " (" + code + ")" : "") + ". Try again shortly.";
-      failed = true; syncing = false; setStatus(msg); $("syncDot").className = "dot stale";
+      else msg = "Refresh failed" + (code ? " (" + code + ")" : "") + ". Try again shortly.";
+      failed = true; syncing = false; setStatus(msg); $("syncDot").className = "dot stale"; toast(msg);
     }).then(function () {
       syncing = false; $("syncBtn").disabled = false; $("syncBtn").classList.remove("busy");
       if (!failed) renderSync();
@@ -990,8 +1000,8 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       db = r[0];
       if (!db) { clearTimeout(timer); $("syncText").textContent = "Sign in to claude.ai to see and edit your items."; return; }
       var u = r[1]; if (u && u.can && u.can("data.write") === false) canWrite = false;
-      if (!canWrite) { document.querySelectorAll("form.add, #subForm").forEach(function (f) { f.hidden = true; }); $("addBtn").hidden = true; }
-      else { window.claude.use("mcp").then(function (m) { if (m) $("syncBtn").hidden = false; }).catch(function () {}); }
+      if (!canWrite) { document.querySelectorAll("form.add, #subForm").forEach(function (f) { f.hidden = true; }); $("addBtn").hidden = true; $("syncBtn").hidden = true; }
+
       db.collection("items").onSnapshot(function (snap) {
         items = snap.docs.map(function (d) { var x = Object.assign({}, d.data() || {}); x.id = d.id; return x; });
         if (!snap.metadata.fromCache) { clearTimeout(timer); loadedOnce = true; }
