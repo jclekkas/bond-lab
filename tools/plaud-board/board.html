@@ -67,7 +67,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
   background: linear-gradient(var(--bg) 70%, transparent);
 }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; margin-right: auto; }
-.mark { width: 34px; height: 34px; border-radius: 10px; display: grid; place-content: center; background: var(--accent); color: var(--accent-ink); flex: none; }
+.mark { width: 38px; height: 38px; flex: none; line-height: 0; filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent)); }
 h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.12rem; letter-spacing: -.015em; margin: 0; line-height: 1.15; text-wrap: balance; }
 .tagline { color: var(--muted); font-size: 12px; margin-top: 2px; }
 .search { position: relative; flex: 0 1 300px; min-width: 150px; }
@@ -206,6 +206,35 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 .toast button { background: transparent; border: 0; color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; }
 .no-match { color: var(--faint); text-align: center; padding: 18px 10px; font-size: 13px; }
 
+/* add task panel, source filter, badges */
+.composer { background: var(--surface); border: 1px solid var(--line-hi); border-radius: 16px; padding: 16px; margin: 0 0 16px; box-shadow: var(--shadow); animation: rise .22s ease both; }
+.c-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.c-head h2 { font-family: var(--font-display); font-size: 1rem; font-weight: 600; margin: 0; }
+.c-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.f > span { font-size: 12px; color: var(--muted); font-weight: 500; }
+.f-wide { grid-column: 1 / -1; }
+.f input[type=text], .f input[type=date], .f textarea, .f select { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; min-width: 0; width: 100%; font: inherit; color: inherit; }
+.f textarea { resize: vertical; }
+.f input:focus, .f textarea:focus, .f select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.c-foot { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.hint { color: var(--faint); font-size: 12px; }
+.toolrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button { background: transparent; border: 0; border-radius: 7px; padding: 5px 11px; font-size: 12.5px; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.seg button:hover { color: var(--fg); }
+.seg button b { font-family: var(--font-mono); font-weight: 500; font-size: 11px; color: var(--faint); }
+.seg button.on { background: var(--surface-hi); color: var(--fg); box-shadow: 0 0 0 1px var(--line-hi); }
+.seg.mini label { display: inline-flex; position: relative; }
+.seg.mini input { position: absolute; opacity: 0; pointer-events: none; }
+.seg.mini span { padding: 5px 16px; border-radius: 7px; cursor: pointer; color: var(--muted); font-size: 12.5px; }
+.seg.mini input:checked + span { background: var(--surface-hi); color: var(--fg); box-shadow: 0 0 0 1px var(--line-hi); }
+.seg.mini input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+.chip.src svg { flex: none; }
+.chip.src.mine { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.card.flash { animation: flash 1.6s ease; }
+@keyframes flash { 0%, 45% { box-shadow: 0 0 0 2px var(--accent), 0 0 26px var(--accent-soft); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (max-width: 760px) { .c-grid { grid-template-columns: minmax(0, 1fr); } .hint.kbd { display: none; } }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .lanes.first .card { animation: rise .38s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 22ms); }
 
@@ -239,14 +268,35 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 <div class="wrap">
   <header class="bar">
     <div class="brand">
-      <div class="mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l3 3 5-6"/><path d="M4 16l3 3 5-6"/><path d="M15 8h5M15 17h5"/></svg></div>
+      <div class="mark" aria-hidden="true"><svg width="38" height="38" viewBox="0 0 40 40" fill="none"><defs><linearGradient id="lg" x1="4" y1="2" x2="36" y2="38" gradientUnits="userSpaceOnUse"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--t-personal)"/></linearGradient></defs><rect width="40" height="40" rx="11" fill="url(#lg)"/><path d="M0 11A11 11 0 0 1 11 0H29A11 11 0 0 1 40 11V17H0Z" fill="#fff" opacity=".1"/><g stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 17.5v5M15 12v16M20.5 15.5v9" opacity=".92"/><path d="M25.5 20.5l3.6 3.6L35 14.5"/></g></svg></div>
       <div><h1>Chris Lekkas's Claude Action Items</h1><div class="tagline">From your Plaud recordings to your priorities</div></div>
     </div>
     <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="search" type="text" placeholder="Search items" autocomplete="off" aria-label="Search items"><kbd>/</kbd></label>
-    <div class="sync"><span class="pill"><span class="dot none" id="syncDot"></span><span id="syncText">Loading your items</span></span><button class="btn primary" id="syncBtn" hidden>Sync now</button></div>
+    <div class="sync"><span class="pill"><span class="dot none" id="syncDot"></span><span id="syncText">Loading your items</span></span><button class="btn" id="syncBtn" hidden>Sync now</button><button class="btn primary" id="addBtn">+ Add task</button></div>
   </header>
 
   <section class="stats" id="stats" aria-label="Summary"></section>
+
+  <form class="composer" id="composer" hidden autocomplete="off">
+    <div class="c-head"><h2 id="c-heading">Add a task</h2><button type="button" class="btn quiet" id="c-cancel">Cancel</button></div>
+    <div class="c-grid">
+      <label class="f f-wide"><span>Task</span><input id="c-title" type="text" required maxlength="140" placeholder="What needs to get done?"></label>
+      <label class="f f-wide"><span>Notes</span><textarea id="c-notes" rows="2" maxlength="400" placeholder="Optional context"></textarea></label>
+      <label class="f"><span>Due date</span><input id="c-due" type="date"></label>
+      <label class="f" id="c-list-f"><span>List</span><select id="c-list"></select></label>
+      <div class="f" id="c-pos-f"><span>Position</span><div class="seg mini"><label><input type="radio" name="c-pos" value="top" checked><span>Top</span></label><label><input type="radio" name="c-pos" value="bottom"><span>Bottom</span></label></div></div>
+    </div>
+    <div class="c-foot"><button class="btn primary" type="submit" id="c-submit">Add task</button><span class="hint">Enter to add, Esc to cancel</span></div>
+  </form>
+
+  <div class="toolrow">
+    <div class="seg" id="srcSeg" role="group" aria-label="Filter by source">
+      <button type="button" data-src="all" class="on">All <b id="n-all"></b></button>
+      <button type="button" data-src="plaud"><svg width="12" height="11" viewBox="0 0 22 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8v4M8 4v12M13 7v6M18 9v2"/></svg>From Plaud <b id="n-plaud"></b></button>
+      <button type="button" data-src="manual"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Added by me <b id="n-manual"></b></button>
+    </div>
+    <span class="hint kbd">Press N to add a task, / to search</span>
+  </div>
 
   <div class="lanes" id="lanesBox">
     <section class="lane inbox" aria-labelledby="h-inbox">
@@ -289,7 +339,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 (function () {
   var DEFAULT_SUBS = [{ id: "financial", name: "Financial" }, { id: "taxes", name: "Taxes" }, { id: "other", name: "Other" }];
   var items = [], meta = null, config = null, db = null, canWrite = true;
-  var expanded = {}, drag = null, pendingRender = false, loadedOnce = false, syncing = false, q = "", firstPaint = true;
+  var expanded = {}, drag = null, pendingRender = false, loadedOnce = false, syncing = false, q = "", firstPaint = true, srcFilter = "all", flashId = null, lastList = "work";
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -324,7 +374,12 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     return groupItems(lane, sub).filter(function (i) { return statusOf(i) === "open" && i.id !== excludeId; });
   }
   function bottomRank(lane, sub) { var l = openIn(lane, sub); return l.length ? rankOf(l[l.length - 1]) + 1 : 0; }
-  function matches(i) { return !q || (String(i.title) + " " + (i.detail || "") + " " + (i.source || "")).toLowerCase().indexOf(q) >= 0; }
+  function filtering() { return !!q || srcFilter !== "all"; }
+  function matches(i) {
+    if (srcFilter === "manual" && i.origin !== "manual") return false;
+    if (srcFilter === "plaud" && i.origin === "manual") return false;
+    return !q || (String(i.title) + " " + (i.detail || "") + " " + (i.source || "")).toLowerCase().indexOf(q) >= 0;
+  }
 
   function toast(msg, undo) {
     var old = document.querySelector(".toast"); if (old) old.remove();
@@ -353,7 +408,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     var chips = dueChip(i.due) +
       (i.hint === "likely_done" && !done ? '<span class="chip maybe keep">May be done</span>' : "") +
       (sugg ? '<span class="chip suggest"><i class="' + sugg.tone + '"></i>Suggested: ' + esc(sugg.label) + "</span>" : "") +
-      (isNew ? '<span class="chip new">New</span>' : "");
+      (isNew ? '<span class="chip new">New</span>' : "") + srcChip(i);
     var moves = ["inbox", "work", "personal"].filter(function (l) { return l !== laneOf(i); }).map(function (l) {
       return '<button class="btn" data-act="move" data-to="' + l + '">Move to ' + (l === "work" ? "Work" : l === "personal" ? "Personal" : "Inbox") + "</button>";
     }).join("");
@@ -368,14 +423,14 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     } else if (open) {
       more = '<div class="more">' + (i.detail ? "<p>" + esc(i.detail) + "</p>" : "") +
         (i.source ? '<div class="src">From: ' + esc(i.source) + "</div>" : "") +
-        (canWrite ? '<div class="acts">' + moves + '<button class="btn" data-act="archive">Archive</button><button class="btn danger" data-act="delete">Delete</button></div>' : "") + "</div>";
+        (canWrite ? '<div class="acts">' + moves + '<button class="btn" data-act="edit">Edit</button><button class="btn" data-act="archive">Archive</button><button class="btn danger" data-act="delete">Delete</button></div>' : "") + "</div>";
     }
     return '<article class="card' + (done ? " is-done" : "") + '" data-id="' + esc(i.id) + '" style="--i:' + Math.min(idx, 14) + '">' +
       '<span class="pos" title="Priority position">' + (done ? "" : pad(n)) + "</span>" +
       '<input type="checkbox" id="c-' + esc(i.id) + '" aria-label="' + (done ? "Reopen: " : "Mark done: ") + esc(i.title) + '"' + (done ? " checked" : "") + (canWrite ? "" : " disabled") + ">" +
       '<div class="body"><button class="title" data-act="toggle" aria-expanded="' + open + '">' + esc(i.title) + "</button>" +
       '<div class="chips">' + chips + accept + sendto + "</div>" + more + "</div>" +
-      (canWrite && !done && !q ? '<button class="grip" aria-label="Drag to reorder: ' + esc(i.title) + '" title="Drag to reorder or move to another list"><svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="3" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="15" r="1.5"/><circle cx="10" cy="15" r="1.5"/></svg></button>' : "<span></span>") +
+      (canWrite && !done && !filtering() ? '<button class="grip" aria-label="Drag to reorder: ' + esc(i.title) + '" title="Drag to reorder or move to another list"><svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="3" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="15" r="1.5"/><circle cx="10" cy="15" r="1.5"/></svg></button>' : "<span></span>") +
       "</article>";
   }
 
@@ -407,6 +462,39 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       return '<div class="stat' + (t.hot ? " hot" : "") + '"><div class="n">' + t.n + '</div><div class="l"><i style="background:' + t.c + '"></i>' + t.l + "</div></div>";
     }).join("");
   }
+
+  function srcChip(i) {
+    return i.origin === "manual"
+      ? '<span class="chip src mine" title="Added by you"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>You</span>'
+      : '<span class="chip src" title="From a Plaud recording"><svg width="11" height="10" viewBox="0 0 22 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8v4M8 4v12M13 7v6M18 9v2"/></svg>Plaud</span>';
+  }
+  function renderCounts() {
+    var live = items.filter(function (i) { return statusOf(i) !== "archived"; });
+    var pl = live.filter(function (i) { return i.origin !== "manual"; }).length;
+    $("n-all").textContent = live.length; $("n-plaud").textContent = pl; $("n-manual").textContent = live.length - pl;
+    document.querySelectorAll("#srcSeg button").forEach(function (b) { var on = b.dataset.src === srcFilter; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); });
+  }
+  function renderComposerList() {
+    var sel = $("c-list"), cur = sel.value || lastList;
+    sel.innerHTML = '<option value="work">Work</option><optgroup label="Personal">' + subs().map(function (x) { return '<option value="personal:' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("") + '</optgroup><option value="inbox">Inbox</option>';
+    sel.value = cur; if (sel.value !== cur) sel.value = "work";
+  }
+  function flashNew() {
+    if (!flashId) return;
+    var c = document.querySelector('.card[data-id="' + flashId + '"]'); if (!c) return;
+    flashId = null; c.classList.add("flash"); c.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    setTimeout(function () { c.classList.remove("flash"); }, 1700);
+  }
+  function openComposer(it) {
+    if (!canWrite) return;
+    var f = $("composer"); f.hidden = false; f.dataset.edit = it ? it.id : "";
+    $("c-heading").textContent = it ? "Edit task" : "Add a task";
+    $("c-submit").textContent = it ? "Save changes" : "Add task";
+    $("c-title").value = it ? it.title : ""; $("c-notes").value = it ? (it.detail || "") : ""; $("c-due").value = it ? (it.due || "") : "";
+    $("c-list-f").hidden = !!it; $("c-pos-f").hidden = !!it;
+    f.scrollIntoView({ block: "nearest", behavior: "smooth" }); $("c-title").focus();
+  }
+  function closeComposer() { var f = $("composer"); f.hidden = true; f.dataset.edit = ""; }
 
   function render() {
     if (drag) { pendingRender = true; return; }
@@ -441,7 +529,10 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
         (canWrite ? '<button class="btn" data-act="restore">Restore</button><button class="btn danger" data-act="purge">Delete forever</button>' : "") + "</li>";
     }).join("") : '<li><span class="t">Archived items appear here. Nothing is archived yet.</span></li>';
     renderStats();
+    renderCounts();
+    renderComposerList();
     renderSync();
+    flashNew();
     if (firstPaint && loadedOnce) {
       firstPaint = false;
       var box = $("lanesBox"); box.classList.add("first"); setTimeout(function () { box.classList.remove("first"); }, 900);
@@ -484,12 +575,31 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   $("search").addEventListener("input", function (e) { q = e.target.value.trim().toLowerCase(); render(); });
   document.addEventListener("keydown", function (e) {
     var tag = (e.target.tagName || "").toLowerCase();
-    if (e.key === "/" && tag !== "input" && tag !== "select" && tag !== "textarea") { e.preventDefault(); $("search").focus(); }
+    var typing = tag === "input" || tag === "select" || tag === "textarea";
+    if (e.key === "Escape" && !$("composer").hidden) { closeComposer(); }
+    else if (e.key === "/" && !typing) { e.preventDefault(); $("search").focus(); }
+    else if ((e.key === "n" || e.key === "N") && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); openComposer(null); }
     else if (e.key === "Escape" && e.target === $("search")) { $("search").value = ""; q = ""; $("search").blur(); render(); }
   });
 
   document.addEventListener("submit", function (e) {
     var f = e.target;
+    if (f.id === "composer") {
+      e.preventDefault();
+      var title = $("c-title").value.trim(); if (!title || !db || !canWrite) return;
+      var notes = $("c-notes").value.trim(), due = $("c-due").value, editId = f.dataset.edit;
+      if (editId) { upd(editId, { title: title, detail: notes, due: due }); closeComposer(); toast("Saved"); return; }
+      var parts = $("c-list").value.split(":"), dl = parts[0], ds = parts[1] || "";
+      lastList = $("c-list").value;
+      var top = document.querySelector('input[name="c-pos"]:checked').value === "top";
+      var lst = openIn(dl, ds), rank = !lst.length ? 0 : top ? rankOf(lst[0]) - 1 : rankOf(lst[lst.length - 1]) + 1;
+      var nid = "m_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      flashId = nid; if (srcFilter === "plaud") srcFilter = "all";
+      if (q) { q = ""; $("search").value = ""; }
+      db.doc("items/" + nid).set({ title: title, detail: notes, lane: dl, sub: ds, rank: rank, due: due, done: false, archived: false, origin: "manual", createdAt: new Date().toISOString() }).catch(fail);
+      closeComposer(); toast("Added to " + (dl === "work" ? "Work" : dl === "inbox" ? "Inbox" : "Personal, " + subName(ds)));
+      return;
+    }
     if (f.id === "subForm") {
       e.preventDefault();
       var inp = $("sub-name"), name = inp.value.trim();
@@ -530,11 +640,14 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   });
 
   document.addEventListener("click", function (e) {
+    var sb = e.target.closest("#srcSeg button");
+    if (sb) { srcFilter = sb.dataset.src; render(); return; }
     var b = e.target.closest("[data-act]"); if (!b) return;
     var act = b.dataset.act, holder = b.closest("[data-id]"), id = holder && holder.dataset.id;
     if (act === "toggle") { expanded[id] = !expanded[id]; render(); return; }
     if (!db || !canWrite) return;
     var it = id && byId(id), card = holder && holder.classList.contains("card") ? holder : null;
+    if (act === "edit" && it) { openComposer(it); return; }
     if (act === "move" && it) {
       var to = b.dataset.to, tsub = to === "personal" ? "other" : "";
       upd(id, { lane: to, sub: tsub, rank: bottomRank(to, tsub) });
@@ -569,7 +682,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 
   /* ---------- drag and drop (pointer events: mouse, pen and touch) ---------- */
   document.addEventListener("pointerdown", function (e) {
-    var grip = e.target.closest(".grip"); if (!grip || !canWrite || !db || q) return;
+    var grip = e.target.closest(".grip"); if (!grip || !canWrite || !db || filtering()) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     e.preventDefault();
     var card = grip.closest(".card"), r = card.getBoundingClientRect();
@@ -774,6 +887,8 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   /* ---------- boot ---------- */
   setInterval(function () { if (!drag) renderSync(); }, 60000);
   $("syncBtn").addEventListener("click", syncNow);
+  $("addBtn").addEventListener("click", function () { openComposer(null); });
+  $("c-cancel").addEventListener("click", closeComposer);
   render();
 
   function start() {
@@ -782,7 +897,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       db = r[0];
       if (!db) { clearTimeout(timer); $("syncText").textContent = "Sign in to claude.ai to see and edit your items."; return; }
       var u = r[1]; if (u && u.can && u.can("data.write") === false) canWrite = false;
-      if (!canWrite) { document.querySelectorAll("form.add, #subForm").forEach(function (f) { f.hidden = true; }); }
+      if (!canWrite) { document.querySelectorAll("form.add, #subForm").forEach(function (f) { f.hidden = true; }); $("addBtn").hidden = true; }
       else { window.claude.use("mcp").then(function (m) { if (m) $("syncBtn").hidden = false; }).catch(function () {}); }
       db.collection("items").onSnapshot(function (snap) {
         items = snap.docs.map(function (d) { var x = Object.assign({}, d.data() || {}); x.id = d.id; return x; });

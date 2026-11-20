@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 40 40" fill="none" role="img" aria-label="Action Items logo: an audio waveform turning into a check mark">
+  <defs>
+    <linearGradient id="g" x1="4" y1="2" x2="36" y2="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5b8cff"/>
+      <stop offset="1" stop-color="#3ccfa0"/>
+    </linearGradient>
+  </defs>
+  <rect width="40" height="40" rx="11" fill="url(#g)"/>
+  <path d="M0 11A11 11 0 0 1 11 0H29A11 11 0 0 1 40 11V17H0Z" fill="#fff" opacity=".1"/>
+  <g stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.5 17.5v5M15 12v16M20.5 15.5v9" opacity=".92"/>
+    <path d="M25.5 20.5l3.6 3.6L35 14.5"/>
+  </g>
+</svg>

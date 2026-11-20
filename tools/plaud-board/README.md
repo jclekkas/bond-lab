@@ -11,6 +11,7 @@ The board itself runs as a private claude.ai artifact visible only to its owner.
 ## Files
 
 - `board.html`: the whole app (one file, no build step). It expects the claude.ai artifact runtime (`db`, `user`, `mcp` and `sample` capabilities).
+- `logo.svg`: the app mark, an audio waveform turning into a check.
 - `test/smoke.cjs`: runs the page in Chromium against an in-memory fake of those capabilities, using made-up items. It covers ticking, archive, delete and undo, drag within and across lists, sub-lists, quick add, Sync now and phone width.
 
 Run the test (Playwright required):
@@ -34,7 +35,7 @@ Collection `items`, one document per item. Lists: `inbox` (holding tank for new 
 | `done`, `doneAt` | ticked off (stays visible, faded and struck through) |
 | `archived`, `archivedAt` | moved to the Archive panel |
 | `due` | `YYYY-MM-DD` or empty |
-| `origin`, `createdAt` | `plaud` or `manual`, ISO time |
+| `origin`, `createdAt` | `plaud` (from a recording) or `manual` (added by the owner), ISO time |
 
 Documents `meta/config` (`subs`: list of `{id, name}`) and `meta/sync` (`lastSyncAt`, `processedFileIds`, `note`).
 

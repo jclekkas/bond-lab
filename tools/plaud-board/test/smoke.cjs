@@ -110,6 +110,38 @@ const fake = `
     await page.waitForTimeout(300);
   }
 
+  // Manual tasks: add from the panel, badge, source filter, edit
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.keyboard.press("n");
+  check("N opens the add-task panel", await page.locator("#composer").isVisible());
+  await page.fill("#c-title", "Call the plumber");
+  await page.fill("#c-notes", "Kitchen sink is leaking");
+  await page.fill("#c-due", "2026-12-01");
+  await page.selectOption("#c-list", "personal:other");
+  if (shots) await page.screenshot({ path: path.join(shots, "2a-composer.png") });
+  await page.click("#c-submit");
+  await page.waitForTimeout(500);
+  let sm = await store();
+  const mid = Object.keys(sm.items).find((k) => sm.items[k].title === "Call the plumber");
+  check("manual task is saved as yours, in the chosen list, with notes and due date", mid && sm.items[mid].origin === "manual" && sm.items[mid].lane === "personal" && sm.items[mid].sub === "other" && sm.items[mid].due === "2026-12-01" && sm.items[mid].detail === "Kitchen sink is leaking", JSON.stringify(sm.items[mid]));
+  check("a new manual task goes to the top of its list", sm.items[mid].rank < sm.items.p5.rank, JSON.stringify([sm.items[mid].rank, sm.items.p5.rank]));
+  check("the panel closes after adding", !(await page.locator("#composer").isVisible()));
+  check("manual task shows a You badge and Plaud tasks show a Plaud badge", (await page.locator(`.card[data-id="${mid}"] .chip.src.mine`).count()) === 1 && (await page.locator('.card[data-id="w1"] .chip.src:not(.mine)').count()) === 1);
+  await page.click('#srcSeg [data-src="manual"]');
+  check("filter: Added by me shows only my tasks", (await page.locator(".card").count()) === 1 && (await page.locator(".card .grip").count()) === 0);
+  await page.click('#srcSeg [data-src="plaud"]');
+  check("filter: From Plaud hides my tasks", (await page.locator(".card .chip.src.mine").count()) === 0 && (await page.locator(".card").count()) >= 10);
+  await page.click('#srcSeg [data-src="all"]');
+  await page.locator(`.card[data-id="${mid}"] .title`).click();
+  await page.locator(`.card[data-id="${mid}"] [data-act="edit"]`).click();
+  await page.fill("#c-title", "Call the plumber today");
+  await page.click("#c-submit");
+  await page.waitForTimeout(300);
+  sm = await store();
+  check("edit saves changes to a task", sm.items[mid].title === "Call the plumber today" && sm.items[mid].origin === "manual");
+  await page.evaluate((id) => window.claude.use("db").then((db) => db.doc("items/" + id).delete()), mid);
+  await page.waitForTimeout(300);
+
   // tick off
   await page.locator('.card[data-id="w2"] input[type=checkbox]').check();
   await page.waitForTimeout(900);
