@@ -222,6 +222,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 .f input:focus, .f textarea:focus, .f select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .c-foot { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 .hint { color: var(--faint); font-size: 12px; }
+.ro { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius: 12px; padding: 10px 14px; margin: 0 0 12px; font-size: 13px; }
 .toolrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
 .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }
 .seg button { background: transparent; border: 0; border-radius: 7px; padding: 5px 11px; font-size: 12.5px; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
@@ -295,6 +296,8 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="search" type="text" placeholder="Search items" autocomplete="off" aria-label="Search items"><kbd>/</kbd></label>
     <div class="sync"><span class="pill"><span class="dot none" id="syncDot"></span><span id="syncText">Loading your items</span></span><button class="btn" id="syncBtn" title="Pull new action items from Plaud (R)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Refresh from Plaud</button><button class="btn primary" id="addBtn">+ Add task</button></div>
   </header>
+
+  <div class="ro" id="roBanner" role="status" hidden><b>Read-only view.</b> Changes cannot be saved from this browser, so editing is turned off. Open the board while signed in to claude.ai as the owner to edit it.</div>
 
   <section class="stats" id="stats" aria-label="Summary"></section>
 
@@ -442,7 +445,17 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     if (undo) { var b = document.createElement("button"); b.textContent = "Undo"; b.onclick = function () { t.remove(); undo(); }; t.appendChild(b); }
     document.body.appendChild(t); setTimeout(function () { t.remove(); }, undo ? 7000 : 3500);
   }
-  function fail(e) { toast("Could not save that change. " + ((e && e.message) || "Try again.")); }
+  function fail(e) {
+    if (/can.?t change this artifact|not allowed to (write|change)/i.test((e && e.message) || "")) { enterReadOnly(); return; }
+    toast("Could not save that change. " + ((e && e.message) || "Try again."));
+  }
+  function enterReadOnly() {
+    if (!canWrite) return;
+    canWrite = false;
+    document.querySelectorAll("form.add, .subadd, #composer").forEach(function (f) { f.hidden = true; });
+    $("addBtn").hidden = true; $("syncBtn").hidden = true; $("roBanner").hidden = false;
+    render();
+  }
 
   function dueChip(due) {
     if (!due) return "";

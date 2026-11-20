@@ -23,9 +23,9 @@ const fake = `
       var x = parts(p), c = x[0], id = x[1];
       return {
         get: function () { return Promise.resolve(snap(id, (store[c] || {})[id])); },
-        set: function (d) { store[c] = store[c] || {}; store[c][id] = JSON.parse(JSON.stringify(d)); notify(); return Promise.resolve(); },
-        update: function (d) { store[c] = store[c] || {}; if (!store[c][id]) return Promise.reject({ code: "invalid_argument", message: "missing" }); Object.assign(store[c][id], JSON.parse(JSON.stringify(d))); notify(); return Promise.resolve(); },
-        delete: function () { if (store[c]) delete store[c][id]; notify(); return Promise.resolve(); },
+        set: function (d) { if (window.__ro) return Promise.reject({ code: "invalid_argument", message: "You can't change this artifact's data." }); store[c] = store[c] || {}; store[c][id] = JSON.parse(JSON.stringify(d)); notify(); return Promise.resolve(); },
+        update: function (d) { if (window.__ro) return Promise.reject({ code: "invalid_argument", message: "You can't change this artifact's data." }); store[c] = store[c] || {}; if (!store[c][id]) return Promise.reject({ code: "invalid_argument", message: "missing" }); Object.assign(store[c][id], JSON.parse(JSON.stringify(d))); notify(); return Promise.resolve(); },
+        delete: function () { if (window.__ro) return Promise.reject({ code: "invalid_argument", message: "You can't change this artifact's data." }); if (store[c]) delete store[c][id]; notify(); return Promise.resolve(); },
         onSnapshot: function (cb) { function f() { cb(snap(id, (store[c] || {})[id])); } subs.push(f); setTimeout(f, 0); return function () {}; }
       };
     }
@@ -50,7 +50,7 @@ const fake = `
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("console", (m) => { if (m.type() === "error" && !/fonts\.g|ERR_|Failed to load resource/.test(m.text())) errors.push(m.text()); });
   await page.addInitScript(fake);
-  await page.route("http://board.test/", (route) => route.fulfill({ contentType: "text/html", body: '<!doctype html><html><head><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>' + html + "</body></html>" }));
+  await page.route("http://board.test/", (route) => route.fulfill({ contentType: "text/html", body: '<!doctype html><html><head><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>[hidden]{display:none!important}</style></head><body>' + html + "</body></html>" }));
   await page.goto("http://board.test/", { waitUntil: "domcontentloaded" });
 
   const seed = await page.evaluate(() => {
@@ -403,6 +403,13 @@ const fake = `
   await page.waitForTimeout(400);
   check("R refreshes, and without Plaud access the page says so", /needs Plaud access/.test(await page.locator("#syncText").innerText()));
   await page.evaluate(() => { window.claude.use = window.__use; });
+
+  // a refused save (read-only viewer) switches the page to a clear read-only state instead of a vague error
+  await page.evaluate(() => { window.__ro = true; });
+  await page.locator(".card input[type=checkbox]").first().check();
+  await page.waitForTimeout(900);
+  check("a refused save shows the read-only banner and turns editing off", await page.locator("#roBanner").isVisible() && !(await page.locator("#addBtn").isVisible()) && !(await page.locator("#syncBtn").isVisible()) && (await page.locator(".grip").count()) === 0 && (await page.locator("form.add").first().isHidden()));
+  check("no vague save-failed toast appears", (await page.locator(".toast", { hasText: "Could not save" }).count()) === 0);
 
   if (shots) {
     await page.screenshot({ path: path.join(shots, "4-after-actions.png"), fullPage: true });
