@@ -30,14 +30,14 @@ Collection `items`, one document per item. Lists: `inbox` (holding tank for new 
 | `lane` | `inbox`, `work` or `personal` |
 | `suggestLane`, `suggestSub` | where the refresh thinks an Inbox item belongs (shown as a hint, never applied automatically) |
 | `hint` | `likely_done` when the notes suggest it is already finished |
-| `sub` | sub-list id for personal items, empty for work |
-| `rank` | number; lower is higher priority within a list |
+| `sub` | section id within Work or Personal (empty means General in Work) |
+| `rank` | number; one rank space per lane, lower is higher priority. Sections and the rank stack are two views of the same order |
 | `done`, `doneAt` | ticked off (stays visible, faded and struck through) |
 | `archived`, `archivedAt` | moved to the Archive panel |
 | `due` | `YYYY-MM-DD` or empty |
 | `origin`, `createdAt` | `plaud` (from a recording) or `manual` (added by the owner), ISO time |
 
-Documents `meta/config` (`subs`: list of `{id, name}`) and `meta/sync` (`lastSyncAt`, `processedFileIds`, `note`).
+Documents `meta/config` (`subs`: Personal sections, `workSubs`: Work sections, each a list of `{id, name}`) and `meta/sync` (`lastSyncAt`, `processedFileIds`, `note`).
 
 ## Refresh
 

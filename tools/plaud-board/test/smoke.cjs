@@ -59,10 +59,10 @@ const fake = `
     mk("w2", "Call the vendor about renewal", "work", "", 1);
     mk("w3", "Draft the Q1 plan", "work", "", 2);
     mk("p1", "Review the household budget", "personal", "financial", 0);
-    mk("p2", "File the amended return", "personal", "taxes", 0);
-    mk("p3", "Practice the breathing exercise", "personal", "individual", 0);
-    mk("p4", "Plan the date night", "personal", "couples", 0);
-    mk("p5", "Renew the car registration", "personal", "other", 0);
+    mk("p2", "File the amended return", "personal", "taxes", 1);
+    mk("p3", "Practice the breathing exercise", "personal", "individual", 2);
+    mk("p4", "Plan the date night", "personal", "couples", 3);
+    mk("p5", "Renew the car registration", "personal", "other", 4);
     mk("i1", "Send the vendor contract to legal", "inbox", "", 0, { suggestLane: "work", hint: "likely_done" });
     mk("i2", "Book the dental cleaning", "inbox", "", 1, { suggestLane: "personal", suggestSub: "other" });
     mk("i3", "Ask the accountant about the HSA form", "inbox", "", 2, { suggestLane: "personal", suggestSub: "taxes" });
@@ -260,6 +260,57 @@ const fake = `
   check("page order matches the saved order", await page.evaluate(() => document.querySelector("#list-work .card").dataset.id === "i3"));
   const savedRank = s.items.i3.rank;
 
+  // Rank stack: one ranked list for the whole lane, section shown as a pill
+  await page.click('.view[data-lane="personal"] [data-view="stack"]');
+  await page.waitForTimeout(250);
+  const openIds = async () => page.locator("#list-personal .card:not(.is-done)").evaluateAll((els) => els.map((e) => e.dataset.id));
+  let ids = await openIds();
+  check("Personal rank stack is a single list with a section pill on every open card", (await page.locator("#subs .group").count()) === 1 && ids.length >= 6 && (await page.locator("#list-personal .card:not(.is-done) .subpill").count()) === ids.length, String(ids.length));
+  if (shots) await page.screenshot({ path: path.join(shots, "7-personal-stack.png") });
+  let st0 = await store();
+  const ranksInStack = ids.map((id) => st0.items[id].rank);
+  check("stack order equals rank order", ranksInStack.every((r, k) => k === 0 || r >= ranksInStack[k - 1]), JSON.stringify(ranksInStack));
+  const lastId = ids[ids.length - 1], lastSub = st0.items[lastId].sub;
+  const topBox = await page.locator(`#list-personal .card[data-id="${ids[0]}"]`).boundingBox();
+  await dragTo(`.card[data-id="${lastId}"] .grip`, topBox.x + topBox.width / 2, topBox.y + 4);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  st0 = await store();
+  const others = Object.entries(st0.items).filter(([id, i]) => i.lane === "personal" && !i.done && !i.archived && id !== lastId).map(([, i]) => i.rank);
+  check("dragging in the stack moves the item to the top of the whole lane and keeps its section", st0.items[lastId].rank < Math.min(...others) && st0.items[lastId].sub === lastSub && st0.items[lastId].lane === "personal", JSON.stringify([st0.items[lastId].rank, Math.min(...others), st0.items[lastId].sub, lastSub]));
+  ids = await openIds();
+  check("the stack shows it first", ids[0] === lastId);
+  // pill changes the section without touching the rank
+  const pillId = ids[1], pillRank = st0.items[pillId].rank, curSub = st0.items[pillId].sub, newSub = curSub === "taxes" ? "financial" : "taxes";
+  await page.selectOption(`.card[data-id="${pillId}"] .subsel`, newSub);
+  await page.waitForTimeout(300);
+  st0 = await store();
+  check("section pill changes the section and leaves the rank alone", st0.items[pillId].sub === newSub && st0.items[pillId].rank === pillRank, JSON.stringify([st0.items[pillId].sub, st0.items[pillId].rank, pillRank]));
+  // back to sections: every section lists its items in the same rank order
+  await page.click('.view[data-lane="personal"] [data-view="sections"]');
+  await page.waitForTimeout(250);
+  const consistent = await page.evaluate((snap) => {
+    return [...document.querySelectorAll("#subs .group")].every((g) => {
+      const dom = [...g.querySelectorAll(".card:not(.is-done)")].map((c) => c.dataset.id);
+      const want = Object.entries(snap).filter(([, i]) => i.lane === "personal" && !i.done && !i.archived && (i.sub || "other") === g.dataset.sub).sort((a, b) => a[1].rank - b[1].rank).map(([id]) => id);
+      return JSON.stringify(dom) === JSON.stringify(want);
+    });
+  }, st0.items);
+  check("Sections view shows the same order, filtered by section", consistent);
+  // dropping into an empty section sends the item to the bottom of the lane stack
+  await page.fill("#sub-name", "Empty test");
+  await page.press("#sub-name", "Enter");
+  await page.waitForTimeout(300);
+  await page.locator('.group[data-sub="empty-test"]').scrollIntoViewIfNeeded();
+  const eg = await page.locator('.group[data-sub="empty-test"]').boundingBox();
+  const dragId = (await page.locator('.group[data-sub="other"] .card:not(.is-done)').first().getAttribute("data-id"));
+  await dragTo(`.card[data-id="${dragId}"] .grip`, eg.x + eg.width / 2, eg.y + eg.height / 2);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  st0 = await store();
+  const maxOther = Math.max(...Object.entries(st0.items).filter(([id, i]) => i.lane === "personal" && !i.done && !i.archived && id !== dragId).map(([, i]) => i.rank));
+  check("dropping into an empty section moves the item there and to the bottom of the stack", st0.items[dragId].sub === "empty-test" && st0.items[dragId].rank > maxOther, JSON.stringify([st0.items[dragId].sub, st0.items[dragId].rank, maxOther]));
+
   // sync
   await page.waitForSelector("#syncBtn:not([hidden])");
   await page.click("#syncBtn");
@@ -319,6 +370,28 @@ const fake = `
   check("dragging near the lane edge autoscrolls a long list", s.items[firstId].rank > 112, String(s.items[firstId].rank));
   await page.evaluate(() => Promise.all(Array.from({ length: 30 }, (_, k) => window.claude.use("db").then((db) => db.doc("items/long" + k).delete()))));
   await page.waitForTimeout(300);
+
+  // Work sections: create, see General plus the new section, rank stack with pills
+  await page.fill("#sub-name-work", "Projects");
+  await page.press("#sub-name-work", "Enter");
+  await page.waitForTimeout(300);
+  let sw = await store();
+  check("a Work section can be created", Array.isArray(sw.meta.config.workSubs) && sw.meta.config.workSubs.some((x) => x.id === "projects") && sw.meta.config.subs.length >= 5);
+  check("Work now shows General and the new section, and the view switch appears", (await page.locator('#subs-work .group').count()) === 2 && (await page.locator('.view[data-lane="work"]').isVisible()));
+  const wid = await page.locator('#subs-work .group[data-sub=""] .card:not(.is-done)').first().getAttribute("data-id");
+  const pg2 = await page.locator('#subs-work .group[data-sub="projects"]').boundingBox();
+  await dragTo(`.card[data-id="${wid}"] .grip`, pg2.x + pg2.width / 2, pg2.y + pg2.height / 2);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  sw = await store();
+  check("an item can be dragged into a Work section", sw.items[wid].sub === "projects" && sw.items[wid].lane === "work", JSON.stringify([sw.items[wid].lane, sw.items[wid].sub]));
+  await page.click('.view[data-lane="work"] [data-view="stack"]');
+  await page.waitForTimeout(250);
+  check("Work rank stack is one list with pills", (await page.locator("#subs-work .group").count()) === 1 && (await page.locator("#list-work .card:not(.is-done) .subpill").count()) === (await page.locator("#list-work .card:not(.is-done)").count()));
+  check("the moved item's pill says Projects", (await page.locator(`.card[data-id="${wid}"] .subpill select`).evaluate((el) => el.options[el.selectedIndex].text)) === "Projects");
+  if (shots) await page.screenshot({ path: path.join(shots, "7b-work-stack.png") });
+  await page.click('.view[data-lane="work"] [data-view="sections"]');
+  await page.waitForTimeout(200);
 
   if (shots) {
     await page.screenshot({ path: path.join(shots, "4-after-actions.png"), fullPage: true });

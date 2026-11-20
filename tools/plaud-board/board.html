@@ -141,7 +141,7 @@ input::placeholder { color: var(--faint); }
 .group { border-radius: 12px; padding: 4px; margin-bottom: 8px; transition: background .15s, box-shadow .15s; }
 .group.over { background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
 .group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 6px 8px; }
-.group-head h3 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.group-head h3 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; }
 .group-head .count { background: transparent; border-color: transparent; padding: 0; }
 .list { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
 .list:empty::before { content: "Drop an item here"; color: var(--faint); font-size: 12.5px; border: 1px dashed var(--line-hi); border-radius: 10px; padding: 11px; text-align: center; }
@@ -193,7 +193,7 @@ input::placeholder { color: var(--faint); }
 .card:hover .grip:hover { background: var(--line); }
 .drop-line { height: 3px; margin: -2px 0; border-radius: 2px; background: var(--accent); box-shadow: 0 0 12px var(--accent); pointer-events: none; flex: none; }
 
-.subadd { display: flex; gap: 8px; margin: 6px 4px 0; }
+.subadd { display: flex; gap: 8px; margin: 0; padding: 0 14px 10px; }
 .subadd input { flex: 1; font-size: 13px; padding: 7px 10px; }
 
 details.archive { margin-top: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 4px 14px; }
@@ -235,6 +235,24 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 .card.flash { animation: flash 1.6s ease; }
 @keyframes flash { 0%, 45% { box-shadow: 0 0 0 2px var(--accent), 0 0 26px var(--accent-soft); } 100% { box-shadow: 0 0 0 0 transparent; } }
 @media (max-width: 760px) { .c-grid { grid-template-columns: minmax(0, 1fr); } .hint.kbd { display: none; } }
+/* sections, rank stack and section pills */
+.lane-title { flex-wrap: wrap; row-gap: 8px; }
+.lane-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.seg.view { padding: 2px; border-radius: 9px; }
+.seg.view button { padding: 3px 9px; font-size: 11.5px; }
+.gdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; background: hsl(var(--h) 70% 58%); }
+.gdot.gen { background: var(--faint); }
+.subpill { display: inline-flex; align-items: center; gap: 6px; position: relative; font-size: 11px; font-weight: 500; line-height: 1.5; border-radius: 999px; padding: 1px 6px 1px 8px; white-space: nowrap;
+  color: var(--fg); border: 1px solid color-mix(in srgb, hsl(var(--h) 70% 55%) 45%, var(--line)); background: color-mix(in srgb, hsl(var(--h) 70% 55%) 14%, transparent); }
+.subpill i { width: 6px; height: 6px; border-radius: 50%; background: hsl(var(--h) 70% 58%); flex: none; }
+.subpill.gen { border-color: var(--line); background: transparent; color: var(--muted); }
+.subpill.gen i { background: var(--faint); }
+.subpill select { appearance: none; -webkit-appearance: none; background: transparent; border: 0; font: inherit; color: inherit; padding: 0 12px 0 0; margin: 0; cursor: pointer; field-sizing: content; min-width: 40px; max-width: 150px; }
+.subpill select option { color: var(--fg); background: var(--surface); }
+.subpill::after { content: ""; position: absolute; right: 7px; top: 50%; margin-top: -1px; border: 3px solid transparent; border-top-color: currentColor; opacity: .6; pointer-events: none; }
+.subpill:has(span)::after { display: none; }
+.card.is-done .subpill { display: none; }
+.group.stack { padding-top: 0; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .lanes.first .card { animation: rise .38s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 22ms); }
 
@@ -309,23 +327,22 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 
     <section class="lane work" aria-labelledby="h-work">
       <div class="lane-head">
-        <div class="lane-title"><span class="tone"></span><h2 id="h-work">Work</h2><span class="count" id="count-work"></span><div class="lane-tools"><button class="btn quiet" data-act="clear-done" data-lane="work" hidden>Archive done</button></div></div>
+        <div class="lane-title"><span class="tone"></span><h2 id="h-work">Work</h2><span class="count" id="count-work"></span><div class="lane-tools"><div class="seg view" data-lane="work" hidden role="group" aria-label="Work view"><button type="button" data-view="sections" class="on">Sections</button><button type="button" data-view="stack">Rank stack</button></div><button class="btn quiet" data-act="clear-done" data-lane="work" hidden>Archive done</button></div></div>
         <div class="sub">Professional backlog, highest priority on top</div>
       </div>
-      <form class="add" data-lane="work"><input id="add-work" type="text" placeholder="Add a work item" autocomplete="off" aria-label="Add a work item"></form>
-      <div class="lane-scroll"><div class="group" data-lane="work" data-sub=""><div class="list" id="list-work" data-lane="work" data-sub=""></div></div></div>
+      <form class="add" data-lane="work"><input id="add-work" type="text" placeholder="Add a work item" autocomplete="off" aria-label="Add a work item"><select id="add-sub-work" aria-label="Section for the new item" hidden></select></form>
+      <form class="subadd" id="subForm-work" data-lane="work"><input id="sub-name-work" type="text" placeholder="New work section" autocomplete="off" aria-label="New work section name"><button class="btn" type="submit">Add section</button></form>
+      <div class="lane-scroll"><div id="subs-work"></div></div>
     </section>
 
     <section class="lane personal" aria-labelledby="h-personal">
       <div class="lane-head">
-        <div class="lane-title"><span class="tone"></span><h2 id="h-personal">Personal</h2><span class="count" id="count-personal"></span><div class="lane-tools"><button class="btn quiet" data-act="clear-done" data-lane="personal" hidden>Archive done</button></div></div>
-        <div class="sub">Sorted into sub-lists, each its own backlog</div>
+        <div class="lane-title"><span class="tone"></span><h2 id="h-personal">Personal</h2><span class="count" id="count-personal"></span><div class="lane-tools"><div class="seg view" data-lane="personal" role="group" aria-label="Personal view"><button type="button" data-view="sections" class="on">Sections</button><button type="button" data-view="stack">Rank stack</button></div><button class="btn quiet" data-act="clear-done" data-lane="personal" hidden>Archive done</button></div></div>
+        <div class="sub">One ranked backlog, viewed by section or as a single stack</div>
       </div>
       <form class="add" data-lane="personal"><input id="add-personal" type="text" placeholder="Add a personal item" autocomplete="off" aria-label="Add a personal item"><select id="add-sub" aria-label="Sub-list for the new item"></select></form>
-      <div class="lane-scroll">
-        <div id="subs"></div>
-        <form class="subadd" id="subForm"><input id="sub-name" type="text" placeholder="New sub-list name" autocomplete="off" aria-label="New sub-list name"><button class="btn" type="submit">Add sub-list</button></form>
-      </div>
+      <form class="subadd" id="subForm" data-lane="personal"><input id="sub-name" type="text" placeholder="New personal section" autocomplete="off" aria-label="New personal section name"><button class="btn" type="submit">Add section</button></form>
+      <div class="lane-scroll"><div id="subs"></div></div>
     </section>
   </div>
 
@@ -340,6 +357,9 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   var DEFAULT_SUBS = [{ id: "financial", name: "Financial" }, { id: "taxes", name: "Taxes" }, { id: "other", name: "Other" }];
   var items = [], meta = null, config = null, db = null, canWrite = true;
   var expanded = {}, drag = null, pendingRender = false, loadedOnce = false, syncing = false, q = "", firstPaint = true, srcFilter = "all", flashId = null, lastList = "work";
+  var views = { work: "sections", personal: "sections" };
+  try { var sv = JSON.parse(localStorage.getItem("pab.views") || "{}"); if (sv.work === "stack") views.work = "stack"; if (sv.personal === "stack") views.personal = "stack"; } catch (err) {}
+  function saveViews() { try { localStorage.setItem("pab.views", JSON.stringify(views)); } catch (err) {} }
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -350,14 +370,29 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   function fmtTime(d) { return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); }
   function pad(n) { return n < 10 ? "0" + n : String(n); }
   function subs() { return (config && Array.isArray(config.subs) && config.subs.length) ? config.subs : DEFAULT_SUBS; }
-  function subName(id) { var s = subs().filter(function (x) { return x.id === id; })[0]; return s ? s.name : id; }
+  function workSubs() { return (config && Array.isArray(config.workSubs)) ? config.workSubs : []; }
+  function subsOf(lane) { return lane === "personal" ? subs() : lane === "work" ? workSubs() : []; }
+  function subNameOf(lane, id) {
+    if (lane === "work" && !id) return "General";
+    var s = subsOf(lane).filter(function (x) { return x.id === id; })[0]; return s ? s.name : id;
+  }
+  function subName(id) { return subNameOf("personal", id); }
+  function sectionsFor(lane) {
+    if (lane === "personal") return subs();
+    var ws = workSubs();
+    return ws.length ? [{ id: "", name: "General" }].concat(ws) : [{ id: "", name: "", flat: true }];
+  }
   function subIdOf(i) {
-    if (laneOf(i) !== "personal") return "";
-    var s = subs();
+    var l = laneOf(i); if (l === "inbox") return "";
+    var s = subsOf(l);
     for (var k = 0; k < s.length; k++) if (s[k].id === i.sub) return i.sub;
+    if (l === "work") return "";
     for (var m = 0; m < s.length; m++) if (s[m].id === "other") return "other";
     return s[s.length - 1].id;
   }
+  function subOrder(i) { var s = sectionsFor(laneOf(i)), id = subIdOf(i); for (var k = 0; k < s.length; k++) if (s[k].id === id) return k; return 0; }
+  var PALETTE = [214, 160, 38, 290, 348, 96, 190, 22, 322];
+  function subHue(lane, id) { var s = subsOf(lane); for (var k = 0; k < s.length; k++) if (s[k].id === id) return PALETTE[k % PALETTE.length]; return 220; }
   function suggestion(i) {
     if (i.suggestLane === "work") return { lane: "work", sub: "", label: "Work", tone: "w" };
     if (i.suggestLane === "personal") {
@@ -366,14 +401,30 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     }
     return null;
   }
+  // One rank per lane. Sections and the stack are two views of the same order.
+  function cmpItems(a, b) {
+    return ((statusOf(a) === "done") - (statusOf(b) === "done")) || (rankOf(a) - rankOf(b)) || (subOrder(a) - subOrder(b)) ||
+      String(a.createdAt || "").localeCompare(String(b.createdAt || "")) || String(a.title).localeCompare(String(b.title));
+  }
   function groupItems(lane, sub) {
-    return items.filter(function (i) { return statusOf(i) !== "archived" && laneOf(i) === lane && subIdOf(i) === sub; })
-      .sort(function (a, b) { return ((statusOf(a) === "done") - (statusOf(b) === "done")) || (rankOf(a) - rankOf(b)); });
+    return items.filter(function (i) { return statusOf(i) !== "archived" && laneOf(i) === lane && (sub === "*" || subIdOf(i) === sub); }).sort(cmpItems);
   }
   function openIn(lane, sub, excludeId) {
     return groupItems(lane, sub).filter(function (i) { return statusOf(i) === "open" && i.id !== excludeId; });
   }
-  function bottomRank(lane, sub) { var l = openIn(lane, sub); return l.length ? rankOf(l[l.length - 1]) + 1 : 0; }
+  function laneOpen(lane, excludeId) { return openIn(lane, "*", excludeId); }
+  function bottomRank(lane) { var l = laneOpen(lane); return l.length ? rankOf(l[l.length - 1]) + 1 : 0; }
+  // A rank that puts an item right after prevRef, or right before nextRef, in the whole lane's order
+  function rankFor(lane, excludeId, prevRef, nextRef) {
+    var seq = laneOpen(lane, excludeId), idx;
+    if (prevRef) idx = seq.indexOf(prevRef) + 1; else if (nextRef) idx = seq.indexOf(nextRef); else idx = seq.length;
+    if (idx < 0) idx = seq.length;
+    var lp = seq[idx - 1], ln = seq[idx];
+    var rank = lp && ln ? (rankOf(lp) + rankOf(ln)) / 2 : lp ? rankOf(lp) + 1 : ln ? rankOf(ln) - 1 : 0;
+    return { rank: rank, tight: !!(lp && ln && Math.abs(rankOf(ln) - rankOf(lp)) < 1e-7), seq: seq, idx: idx };
+  }
+  function rankTopOfSection(lane, sub) { var l = openIn(lane, sub); return l.length ? rankFor(lane, null, null, l[0]).rank : bottomRank(lane); }
+  function rankBottomOfSection(lane, sub) { var l = openIn(lane, sub); return l.length ? rankFor(lane, null, l[l.length - 1], null).rank : bottomRank(lane); }
   function filtering() { return !!q || srcFilter !== "all"; }
   function matches(i) {
     if (srcFilter === "manual" && i.origin !== "manual") return false;
@@ -400,12 +451,22 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     return '<span class="chip">Due ' + fmtDay(d) + "</span>";
   }
 
-  function cardHtml(i, n, idx) {
+  function subPill(i) {
+    var lane = laneOf(i); if (lane === "inbox") return "";
+    var secs = sectionsFor(lane).filter(function (x) { return !x.flat; }); if (!secs.length) return "";
+    var cur = subIdOf(i), done = statusOf(i) === "done";
+    var control = canWrite && !done
+      ? '<select class="subsel" aria-label="Section" id="sp-' + esc(i.id) + '">' + secs.map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === cur ? " selected" : "") + ">" + esc(x.name) + "</option>"; }).join("") + "</select>"
+      : "<span>" + esc(subNameOf(lane, cur)) + "</span>";
+    return '<label class="subpill' + (lane === "work" && cur === "" ? " gen" : "") + '" style="--h:' + subHue(lane, cur) + '"><i></i>' + control + "</label>";
+  }
+
+  function cardHtml(i, n, idx, stack) {
     var done = statusOf(i) === "done", open = !!expanded[i.id];
     var isNew = !done && i.origin === "plaud" && i.createdAt && (Date.now() - new Date(i.createdAt).getTime()) < 24 * 3600 * 1000;
     var inbox = laneOf(i) === "inbox";
     var sugg = inbox ? suggestion(i) : null;
-    var chips = dueChip(i.due) +
+    var chips = (stack ? subPill(i) : "") + dueChip(i.due) +
       (i.hint === "likely_done" && !done ? '<span class="chip maybe keep">May be done</span>' : "") +
       (sugg ? '<span class="chip suggest"><i class="' + sugg.tone + '"></i>Suggested: ' + esc(sugg.label) + "</span>" : "") +
       (isNew ? '<span class="chip new">New</span>' : "") + srcChip(i);
@@ -413,7 +474,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       return '<button class="btn" data-act="move" data-to="' + l + '">Move to ' + (l === "work" ? "Work" : l === "personal" ? "Personal" : "Inbox") + "</button>";
     }).join("");
     var sendto = inbox && canWrite && !done
-      ? '<select class="sendto" aria-label="Send to a list" id="st-' + esc(i.id) + '"><option value="">Send to…</option><option value="work">Work</option><optgroup label="Personal">' +
+      ? '<select class="sendto" aria-label="Send to a list" id="st-' + esc(i.id) + '"><option value="">Send to…</option><optgroup label="Work"><option value="work">' + (workSubs().length ? "Work, General" : "Work") + "</option>" + workSubs().map(function (x) { return '<option value="work:' + esc(x.id) + '">Work, ' + esc(x.name) + "</option>"; }).join("") + '</optgroup><optgroup label="Personal">' +
         subs().map(function (x) { return '<option value="personal:' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("") + "</optgroup></select>"
       : "";
     var accept = sugg && canWrite && !done ? '<button class="btn accept" data-act="accept" title="Move to ' + esc(sugg.label) + ', at the bottom">Accept</button>' : "";
@@ -439,7 +500,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     var html = g.map(function (i) {
       if (statusOf(i) === "open") n++;
       if (!matches(i)) return "";
-      return cardHtml(i, n, shown++);
+      return cardHtml(i, n, shown++, sub === "*");
     }).join("");
     if (q && g.length && !shown) return '<div class="no-match">No matches here</div>';
     return html;
@@ -475,8 +536,10 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     document.querySelectorAll("#srcSeg button").forEach(function (b) { var on = b.dataset.src === srcFilter; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); });
   }
   function renderComposerList() {
-    var sel = $("c-list"), cur = sel.value || lastList;
-    sel.innerHTML = '<option value="work">Work</option><optgroup label="Personal">' + subs().map(function (x) { return '<option value="personal:' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("") + '</optgroup><option value="inbox">Inbox</option>';
+    var sel = $("c-list"), cur = sel.value || lastList, ws = workSubs();
+    sel.innerHTML = '<optgroup label="Work"><option value="work">' + (ws.length ? "Work, General" : "Work") + "</option>" +
+      ws.map(function (x) { return '<option value="work:' + esc(x.id) + '">Work, ' + esc(x.name) + "</option>"; }).join("") + '</optgroup><optgroup label="Personal">' +
+      subs().map(function (x) { return '<option value="personal:' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("") + '</optgroup><option value="inbox">Inbox</option>';
     sel.value = cur; if (sel.value !== cur) sel.value = "work";
   }
   function flashNew() {
@@ -496,18 +559,35 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   }
   function closeComposer() { var f = $("composer"); f.hidden = true; f.dataset.edit = ""; }
 
+  function laneBody(lane) {
+    var secs = sectionsFor(lane), real = secs.some(function (x) { return !x.flat; });
+    if (views[lane] === "stack" && (lane === "personal" || real)) {
+      return '<div class="group stack" data-lane="' + lane + '" data-sub="*"><div class="list" id="list-' + lane + '" data-lane="' + lane + '" data-sub="*">' + listHtml(lane, "*") + "</div></div>";
+    }
+    return secs.map(function (x) {
+      if (x.flat) return '<div class="group" data-lane="' + lane + '" data-sub=""><div class="list" id="list-' + lane + '" data-lane="' + lane + '" data-sub="">' + listHtml(lane, "") + "</div></div>";
+      return '<div class="group" data-lane="' + lane + '" data-sub="' + esc(x.id) + '"><div class="group-head"><h3><i class="gdot' + (x.id === "" ? " gen" : "") + '" style="--h:' + subHue(lane, x.id) + '"></i>' + esc(x.name) + '</h3><span class="count">' + openIn(lane, x.id).length + "</span></div>" +
+        '<div class="list" data-lane="' + lane + '" data-sub="' + esc(x.id) + '">' + listHtml(lane, x.id) + "</div></div>";
+    }).join("");
+  }
+
   function render() {
     if (drag) { pendingRender = true; return; }
     pendingRender = false;
     var s = subs();
 
     $("list-inbox").innerHTML = listHtml("inbox", "");
-    $("list-work").innerHTML = listHtml("work", "");
-    $("subs").innerHTML = s.map(function (x) {
-      var open = openIn("personal", x.id).length;
-      return '<div class="group" data-lane="personal" data-sub="' + esc(x.id) + '"><div class="group-head"><h3>' + esc(x.name) + '</h3><span class="count">' + open + '</span></div>' +
-        '<div class="list" data-lane="personal" data-sub="' + esc(x.id) + '">' + listHtml("personal", x.id) + "</div></div>";
-    }).join("");
+    $("subs-work").innerHTML = laneBody("work");
+    $("subs").innerHTML = laneBody("personal");
+    var ws = workSubs(), sw = $("add-sub-work"), curw = sw.value;
+    sw.hidden = !ws.length;
+    sw.innerHTML = '<option value="">General</option>' + ws.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("");
+    sw.value = ws.some(function (x) { return x.id === curw; }) ? curw : "";
+    ["work", "personal"].forEach(function (lane) {
+      var seg = document.querySelector('.view[data-lane="' + lane + '"]');
+      seg.hidden = lane === "work" && !ws.length;
+      seg.querySelectorAll("button").forEach(function (b) { var on = b.dataset.view === views[lane]; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); });
+    });
 
     var sel = $("add-sub"), cur = sel.value;
     sel.innerHTML = s.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("");
@@ -524,7 +604,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       .sort(function (a, b) { return String(b.archivedAt || "").localeCompare(String(a.archivedAt || "")); });
     $("archiveSummary").textContent = "Archive (" + arch.length + ")";
     $("archiveList").innerHTML = arch.length ? arch.map(function (i) {
-      var where = laneOf(i) === "work" ? "Work" : laneOf(i) === "inbox" ? "Inbox" : "Personal, " + subName(subIdOf(i));
+      var where = laneOf(i) === "work" ? "Work" + (subIdOf(i) ? ", " + subNameOf("work", subIdOf(i)) : "") : laneOf(i) === "inbox" ? "Inbox" : "Personal, " + subName(subIdOf(i));
       return '<li data-id="' + esc(i.id) + '"><span class="t">' + esc(i.title) + '</span><span class="where">' + esc(where) + "</span>" +
         (canWrite ? '<button class="btn" data-act="restore">Restore</button><button class="btn danger" data-act="purge">Delete forever</button>' : "") + "</li>";
     }).join("") : '<li><span class="t">Archived items appear here. Nothing is archived yet.</span></li>';
@@ -566,8 +646,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 
   function addItem(lane, sub, title) {
     var id = "m_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    var list = openIn(lane, sub);
-    var rank = list.length ? rankOf(list[0]) - 1 : 0;
+    var rank = rankTopOfSection(lane, sub);
     return db.doc("items/" + id).set({ title: title, detail: "", lane: lane, sub: sub, rank: rank, done: false, archived: false, origin: "manual", createdAt: new Date().toISOString() }).catch(fail);
   }
 
@@ -592,35 +671,42 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       var parts = $("c-list").value.split(":"), dl = parts[0], ds = parts[1] || "";
       lastList = $("c-list").value;
       var top = document.querySelector('input[name="c-pos"]:checked').value === "top";
-      var lst = openIn(dl, ds), rank = !lst.length ? 0 : top ? rankOf(lst[0]) - 1 : rankOf(lst[lst.length - 1]) + 1;
+      var rank = top ? rankTopOfSection(dl, ds) : rankBottomOfSection(dl, ds);
       var nid = "m_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       flashId = nid; if (srcFilter === "plaud") srcFilter = "all";
       if (q) { q = ""; $("search").value = ""; }
       db.doc("items/" + nid).set({ title: title, detail: notes, lane: dl, sub: ds, rank: rank, due: due, done: false, archived: false, origin: "manual", createdAt: new Date().toISOString() }).catch(fail);
-      closeComposer(); toast("Added to " + (dl === "work" ? "Work" : dl === "inbox" ? "Inbox" : "Personal, " + subName(ds)));
+      closeComposer(); toast("Added to " + (dl === "work" ? "Work" + (ds ? ", " + subNameOf("work", ds) : "") : dl === "inbox" ? "Inbox" : "Personal, " + subName(ds)));
       return;
     }
-    if (f.id === "subForm") {
+    if (f.classList && f.classList.contains("subadd")) {
       e.preventDefault();
-      var inp = $("sub-name"), name = inp.value.trim();
+      var slane = f.dataset.lane || "personal";
+      var inp = f.querySelector("input"), name = inp.value.trim();
       if (!name || !db || !canWrite) return;
-      var id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || ("sub-" + Date.now().toString(36));
-      var cur = subs();
-      if (cur.some(function (x) { return x.id === id; })) { toast("That sub-list already exists."); return; }
+      var id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || ("sec-" + Date.now().toString(36));
+      var cur = subsOf(slane);
+      if (cur.some(function (x) { return x.id === id; })) { toast("That section already exists."); return; }
       inp.value = "";
-      db.doc("meta/config").set({ subs: cur.concat([{ id: id, name: name }]) }).catch(fail);
+      var nextList = cur.concat([{ id: id, name: name }]);
+      db.doc("meta/config").set({ subs: slane === "personal" ? nextList : subs(), workSubs: slane === "work" ? nextList : workSubs() }).catch(fail);
       return;
     }
     if (!f.classList || !f.classList.contains("add")) return;
     e.preventDefault();
     var inp2 = f.querySelector('input[type=text]'), v = inp2.value.trim();
     if (!v || !db || !canWrite) return;
-    var lane = f.dataset.lane, sub = lane === "work" ? "" : $("add-sub").value;
+    var lane = f.dataset.lane, sub = lane === "work" ? ($("add-sub-work").hidden ? "" : $("add-sub-work").value) : $("add-sub").value;
     inp2.value = ""; addItem(lane, sub, v);
   });
 
   document.addEventListener("change", function (e) {
     var cb = e.target;
+    if (cb.matches && cb.matches(".subsel")) {
+      if (!db || !canWrite) return;
+      upd(cb.closest(".card").dataset.id, { sub: cb.value });
+      return;
+    }
     if (cb.matches && cb.matches(".sendto")) {
       var dest = cb.value; if (!dest || !db || !canWrite) return;
       var sid = cb.closest(".card").dataset.id, parts = dest.split(":");
@@ -640,6 +726,8 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   });
 
   document.addEventListener("click", function (e) {
+    var vb = e.target.closest(".view button");
+    if (vb) { var vl = vb.closest(".view").dataset.lane; views[vl] = vb.dataset.view; saveViews(); render(); return; }
     var sb = e.target.closest("#srcSeg button");
     if (sb) { srcFilter = sb.dataset.src; render(); return; }
     var b = e.target.closest("[data-act]"); if (!b) return;
@@ -775,24 +863,29 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   function onCancel() { if (!drag) return; cleanup(); drag = null; render(); }
   function onUp(e) {
     if (!drag || e.pointerId !== drag.pid) return;
-    var d = drag, lane = d.group.dataset.lane, sub = d.group.dataset.sub, beforeId = d.before && d.before.dataset.id;
+    var d = drag, lane = d.group.dataset.lane, gsub = d.group.dataset.sub, beforeId = d.before && d.before.dataset.id;
     cleanup(); drag = null;
-    var others = openIn(lane, sub, d.id);
-    var idx = beforeId ? others.findIndex(function (i) { return i.id === beforeId; }) : others.length;
-    if (idx < 0) idx = others.length;
-    var prev = others[idx - 1], next = others[idx];
-    var rank = prev && next ? (rankOf(prev) + rankOf(next)) / 2 : prev ? rankOf(prev) + 1 : next ? rankOf(next) - 1 : 0;
-    var me = byId(d.id);
-    var sameSpot = me && laneOf(me) === lane && subIdOf(me) === sub && (!prev || rankOf(prev) < rankOf(me)) && (!next || rankOf(next) > rankOf(me));
+    var me = byId(d.id), sub = gsub;
+    if (gsub === "*") {
+      // in the rank stack the section does not change, unless the item comes from another lane
+      if (me && laneOf(me) === lane) sub = subIdOf(me);
+      else { var sg = me && suggestion(me); sub = sg && sg.lane === lane ? sg.sub : (lane === "personal" ? "other" : ""); }
+    }
+    var visible = gsub === "*" ? laneOpen(lane, d.id) : openIn(lane, gsub, d.id);
+    var idx = beforeId ? visible.findIndex(function (i) { return i.id === beforeId; }) : visible.length;
+    if (idx < 0) idx = visible.length;
+    var prevRef = visible[idx - 1], nextRef = visible[idx];
+    var sameSpot = me && laneOf(me) === lane && subIdOf(me) === sub && (!prevRef || rankOf(prevRef) < rankOf(me)) && (!nextRef || rankOf(nextRef) > rankOf(me));
     if (sameSpot) { render(); return; }
-    if (me) { me.lane = lane; me.sub = sub; me.rank = rank; }
-    if (prev && next && Math.abs(rankOf(next) - rankOf(prev)) < 1e-7) {
-      var seq = others.slice(); seq.splice(idx, 0, me);
+    var r = rankFor(lane, d.id, prevRef, nextRef);
+    if (me) { me.lane = lane; me.sub = sub; me.rank = r.rank; }
+    if (r.tight || !isFinite(r.rank)) {
+      var seq = r.seq.slice(); seq.splice(r.idx, 0, me);
       seq.reduce(function (p, it, k) {
         return p.then(function () { return db.doc("items/" + it.id).update(it.id === d.id ? { lane: lane, sub: sub, rank: k * 10 } : { rank: k * 10 }); });
       }, Promise.resolve()).catch(fail);
     } else {
-      upd(d.id, { lane: lane, sub: sub, rank: rank });
+      upd(d.id, { lane: lane, sub: sub, rank: r.rank });
     }
     render();
   }
