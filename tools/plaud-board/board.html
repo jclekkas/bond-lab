@@ -1,0 +1,588 @@
+<title>Plaud Action Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: two backlog lanes. Work is one drag list. Personal is stacked sub-lists, each its own drag list. Cards move between any list. */
+:root {
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --surface-2: #e9edf4;
+  --line: #d6dce7;
+  --fg: #141a26;
+  --muted: #586379;
+  --accent: #2455d9;
+  --accent-soft: #e3eaff;
+  --ok: #1b7a4b;
+  --warn: #9a5700;
+  --bad: #b3261e;
+  --shadow: 0 1px 2px rgba(20, 26, 38, .06), 0 4px 14px rgba(20, 26, 38, .08);
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1219; --surface: #171c26; --surface-2: #202735; --line: #2b3342;
+    --fg: #e8ecf4; --muted: #9aa5b9; --accent: #86a2ff; --accent-soft: #212c52;
+    --ok: #5ccf95; --warn: #f0b050; --bad: #ff8a80;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1219; --surface: #171c26; --surface-2: #202735; --line: #2b3342;
+  --fg: #e8ecf4; --muted: #9aa5b9; --accent: #86a2ff; --accent-soft: #212c52;
+  --ok: #5ccf95; --warn: #f0b050; --bad: #ff8a80;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; line-height: 1.45;
+  padding-block: 20px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button { font: inherit; color: inherit; }
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; margin-bottom: 18px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.7rem; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.sync { color: var(--muted); font-size: 12.5px; display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+.dot.stale { background: var(--warn); }
+.dot.none { background: var(--line); }
+
+.lanes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.lane { background: var(--surface-2); border-radius: 14px; padding: 14px; min-width: 0; }
+.lane-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 2px 4px 10px; }
+.lane-head h2 { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; margin: 0; }
+.lane-head .sub { color: var(--muted); font-size: 12px; }
+.lane-tools { display: flex; align-items: center; gap: 10px; }
+.count { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.add { display: flex; gap: 8px; margin-bottom: 12px; }
+.add input[type=text], .add select, .subadd input {
+  font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; min-width: 0;
+}
+.add input[type=text] { flex: 1; }
+.add select { max-width: 42%; }
+input::placeholder { color: var(--muted); }
+input:focus-visible, select:focus-visible, button:focus-visible, .card input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.group { border-radius: 10px; padding: 4px; margin: 0 -4px 10px; transition: background .15s; }
+.group:last-child { margin-bottom: 0; }
+.group.over { background: var(--accent-soft); }
+.group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 4px 6px 8px; }
+.group-head h3 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: .95rem; }
+.list { display: flex; flex-direction: column; gap: 8px; min-height: 44px; }
+.list:empty::before { content: "Drop an item here"; color: var(--muted); font-size: 12.5px; border: 1px dashed var(--line); border-radius: 9px; padding: 11px; text-align: center; }
+
+.card {
+  display: grid; grid-template-columns: 22px 20px minmax(0, 1fr) 28px; gap: 10px; align-items: start;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 8px 11px 12px;
+  transition: opacity .3s, background .3s, max-height .26s ease, margin .26s ease, padding .26s ease, border-width .26s ease;
+  overflow: hidden;
+}
+.card.dragging { opacity: .35; }
+.card.ghost { position: fixed; z-index: 50; pointer-events: none; box-shadow: var(--shadow); transform: rotate(.6deg); opacity: .96; margin: 0; overflow: visible; }
+.card.removing { max-height: 0 !important; opacity: 0; padding-block: 0; margin-bottom: -8px; border-width: 0; }
+.card.is-done { background: transparent; border-style: dashed; opacity: .62; }
+.card.is-done .title { text-decoration: line-through; color: var(--muted); }
+.card.is-done .chips .chip:not(.keep) { display: none; }
+.pos { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; padding-top: 2px; text-align: right; }
+.card input[type=checkbox] {
+  appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 1px 0 0; border-radius: 6px;
+  border: 1.6px solid var(--muted); background: transparent; cursor: pointer; display: grid; place-content: center; transition: background .2s, border-color .2s;
+}
+.card input[type=checkbox]::after { content: ""; width: 10px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) scale(0); margin-top: -2px; transition: transform .18s; }
+.card input[type=checkbox]:hover { border-color: var(--accent); background: var(--accent-soft); }
+.card input[type=checkbox]:checked { background: var(--ok); border-color: var(--ok); }
+.card input[type=checkbox]:checked::after { transform: rotate(-45deg) scale(1); }
+.body { min-width: 0; }
+.title { all: unset; display: block; cursor: pointer; font-weight: 500; line-height: 1.38; overflow-wrap: anywhere; transition: color .3s; }
+.title:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.card.fading { opacity: .62; background: transparent; }
+.card.fading .title { text-decoration: line-through; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chips:empty { display: none; }
+.chip { display: inline-flex; align-items: center; font-size: 11.5px; color: var(--muted); background: var(--surface-2); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.chip.due-over { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--surface)); font-weight: 500; }
+.chip.due-today { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, var(--surface)); font-weight: 500; }
+.chip.new { color: var(--accent); background: var(--accent-soft); font-weight: 500; }
+.more { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
+.more p { margin: 0 0 6px; color: var(--fg); overflow-wrap: anywhere; }
+.more .src { font-size: 12px; }
+.acts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.btn { background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; padding: 5px 10px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.danger:hover { border-color: var(--bad); color: var(--bad); }
+.btn.quiet { background: transparent; }
+.grip { appearance: none; border: 0; background: transparent; width: 28px; height: 28px; border-radius: 6px; color: var(--muted); cursor: grab; touch-action: none; display: grid; place-content: center; }
+.grip:hover { background: var(--surface-2); color: var(--fg); }
+.drop-line { height: 3px; margin: -2px 0; border-radius: 2px; background: var(--accent); pointer-events: none; flex: none; }
+.empty { color: var(--muted); text-align: center; padding: 14px 12px; border: 1px dashed var(--line); border-radius: 10px; font-size: 13px; }
+
+.subadd { display: flex; gap: 8px; margin-top: 12px; }
+.subadd input { flex: 1; font-size: 13px; padding: 7px 10px; }
+
+details.archive { margin-top: 22px; }
+details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 6px 2px; }
+.arch-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.arch-list li { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--muted); min-width: 0; flex-wrap: wrap; }
+.arch-list .t { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.arch-list .where { font-size: 12px; white-space: nowrap; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 9px 12px 9px 14px; border-radius: 9px; font-size: 13px; z-index: 60; max-width: calc(100% - 32px); display: flex; gap: 12px; align-items: center; }
+.toast button { background: transparent; border: 0; color: var(--bg); font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0; }
+
+@media (max-width: 760px) {
+  .lanes { grid-template-columns: minmax(0, 1fr); }
+  .arch-list { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 1.45rem; }
+}
+@media (prefers-reduced-motion: reduce) { .card, .group { transition: none; } .card input[type=checkbox]::after { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Plaud Action Board</h1>
+    <div class="sync"><span class="dot none" id="syncDot"></span><span id="syncText">Loading your items</span><button class="btn" id="syncBtn" hidden>Sync now</button></div>
+  </header>
+
+  <div class="lanes">
+    <section class="lane" aria-labelledby="h-work">
+      <div class="lane-head">
+        <div><h2 id="h-work">Work</h2><div class="sub">Professional</div></div>
+        <div class="lane-tools"><button class="btn quiet" data-act="clear-done" data-lane="work" hidden>Archive done</button><span class="count" id="count-work"></span></div>
+      </div>
+      <form class="add" data-lane="work"><input id="add-work" type="text" placeholder="Add a work item" autocomplete="off" aria-label="Add a work item"></form>
+      <div class="group" data-lane="work" data-sub=""><div class="list" id="list-work" data-lane="work" data-sub=""></div></div>
+    </section>
+
+    <section class="lane" aria-labelledby="h-personal">
+      <div class="lane-head">
+        <div><h2 id="h-personal">Personal</h2><div class="sub">Sorted into sub-lists</div></div>
+        <div class="lane-tools"><button class="btn quiet" data-act="clear-done" data-lane="personal" hidden>Archive done</button><span class="count" id="count-personal"></span></div>
+      </div>
+      <form class="add" data-lane="personal"><input id="add-personal" type="text" placeholder="Add a personal item" autocomplete="off" aria-label="Add a personal item"><select id="add-sub" aria-label="Sub-list for the new item"></select></form>
+      <div id="subs"></div>
+      <form class="subadd" id="subForm"><input id="sub-name" type="text" placeholder="New sub-list name" autocomplete="off" aria-label="New sub-list name"><button class="btn" type="submit">Add sub-list</button></form>
+    </section>
+  </div>
+
+  <details class="archive" id="archiveBox">
+    <summary id="archiveSummary">Archive</summary>
+    <ul class="arch-list" id="archiveList"></ul>
+  </details>
+</div>
+
+<script>
+(function () {
+  var DEFAULT_SUBS = [{ id: "financial", name: "Financial" }, { id: "taxes", name: "Taxes" }, { id: "other", name: "Other" }];
+  var items = [], meta = null, config = null, db = null, canWrite = true;
+  var expanded = {}, drag = null, pendingRender = false, loadedOnce = false, syncing = false;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function laneOf(i) { return i.lane === "work" ? "work" : "personal"; }
+  function rankOf(i) { return typeof i.rank === "number" ? i.rank : 0; }
+  function statusOf(i) { return i.archived ? "archived" : (i.done ? "done" : "open"); }
+  function fmtDay(d) { return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
+  function fmtTime(d) { return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); }
+  function subs() { return (config && Array.isArray(config.subs) && config.subs.length) ? config.subs : DEFAULT_SUBS; }
+  function subName(id) { var s = subs().filter(function (x) { return x.id === id; })[0]; return s ? s.name : id; }
+  function subIdOf(i) {
+    if (laneOf(i) === "work") return "";
+    var s = subs();
+    for (var k = 0; k < s.length; k++) if (s[k].id === i.sub) return i.sub;
+    for (var m = 0; m < s.length; m++) if (s[m].id === "other") return "other";
+    return s[s.length - 1].id;
+  }
+  function groupItems(lane, sub) {
+    return items.filter(function (i) { return statusOf(i) !== "archived" && laneOf(i) === lane && subIdOf(i) === sub; })
+      .sort(function (a, b) { return ((statusOf(a) === "done") - (statusOf(b) === "done")) || (rankOf(a) - rankOf(b)); });
+  }
+  function openIn(lane, sub, excludeId) {
+    return groupItems(lane, sub).filter(function (i) { return statusOf(i) === "open" && i.id !== excludeId; });
+  }
+  function bottomRank(lane, sub) { var l = openIn(lane, sub); return l.length ? rankOf(l[l.length - 1]) + 1 : 0; }
+
+  function toast(msg, undo) {
+    var old = document.querySelector(".toast"); if (old) old.remove();
+    var t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status");
+    var s = document.createElement("span"); s.textContent = msg; t.appendChild(s);
+    if (undo) { var b = document.createElement("button"); b.textContent = "Undo"; b.onclick = function () { t.remove(); undo(); }; t.appendChild(b); }
+    document.body.appendChild(t); setTimeout(function () { t.remove(); }, undo ? 7000 : 3500);
+  }
+  function fail(e) { toast("Could not save that change. " + ((e && e.message) || "Try again.")); }
+
+  function dueChip(due) {
+    if (!due) return "";
+    var d = new Date(due + "T00:00:00"); if (isNaN(d)) return "";
+    var t = new Date(); t.setHours(0, 0, 0, 0);
+    var diff = Math.round((d - t) / 86400000);
+    if (diff < 0) return '<span class="chip due-over keep">Overdue, ' + fmtDay(d) + "</span>";
+    if (diff === 0) return '<span class="chip due-today keep">Due today</span>';
+    return '<span class="chip">Due ' + fmtDay(d) + "</span>";
+  }
+
+  function cardHtml(i, n) {
+    var done = statusOf(i) === "done", open = !!expanded[i.id];
+    var isNew = !done && i.origin === "plaud" && i.createdAt && (Date.now() - new Date(i.createdAt).getTime()) < 24 * 3600 * 1000;
+    var chips = dueChip(i.due) + (isNew ? '<span class="chip new">New</span>' : "");
+    var other = laneOf(i) === "work" ? "personal" : "work";
+    var more = "";
+    if (done && canWrite) {
+      more = '<div class="acts"><button class="btn" data-act="undo">Undo</button><button class="btn" data-act="archive">Archive</button><button class="btn danger" data-act="delete">Delete</button></div>';
+    } else if (open) {
+      more = '<div class="more">' + (i.detail ? "<p>" + esc(i.detail) + "</p>" : "") +
+        (i.source ? '<div class="src">From: ' + esc(i.source) + "</div>" : "") +
+        (canWrite ? '<div class="acts"><button class="btn" data-act="move" data-to="' + other + '">Move to ' + (other === "work" ? "Work" : "Personal") + '</button><button class="btn" data-act="archive">Archive</button><button class="btn danger" data-act="delete">Delete</button></div>' : "") + "</div>";
+    }
+    return '<article class="card' + (done ? " is-done" : "") + '" data-id="' + esc(i.id) + '">' +
+      '<span class="pos" title="Priority position">' + (done ? "" : n) + "</span>" +
+      '<input type="checkbox" id="c-' + esc(i.id) + '" aria-label="' + (done ? "Reopen: " : "Mark done: ") + esc(i.title) + '"' + (done ? " checked" : "") + (canWrite ? "" : " disabled") + ">" +
+      '<div class="body"><button class="title" data-act="toggle" aria-expanded="' + open + '">' + esc(i.title) + "</button>" +
+      '<div class="chips">' + chips + "</div>" + more + "</div>" +
+      (canWrite && !done ? '<button class="grip" aria-label="Drag to reorder: ' + esc(i.title) + '" title="Drag to reorder or move to another list"><svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="3" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="15" r="1.5"/><circle cx="10" cy="15" r="1.5"/></svg></button>' : "<span></span>") +
+      "</article>";
+  }
+
+  function listHtml(lane, sub) {
+    var g = groupItems(lane, sub), n = 0;
+    return g.map(function (i) { if (statusOf(i) === "open") n++; return cardHtml(i, n); }).join("");
+  }
+
+  function render() {
+    if (drag) { pendingRender = true; return; }
+    pendingRender = false;
+    var s = subs();
+
+    $("list-work").innerHTML = listHtml("work", "");
+    $("subs").innerHTML = s.map(function (x) {
+      var open = openIn("personal", x.id).length;
+      return '<div class="group" data-lane="personal" data-sub="' + esc(x.id) + '"><div class="group-head"><h3>' + esc(x.name) + '</h3><span class="count">' + open + ' open</span></div>' +
+        '<div class="list" data-lane="personal" data-sub="' + esc(x.id) + '">' + listHtml("personal", x.id) + "</div></div>";
+    }).join("");
+
+    var sel = $("add-sub"), cur = sel.value;
+    sel.innerHTML = s.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("");
+    sel.value = cur && s.some(function (x) { return x.id === cur; }) ? cur : (s.some(function (x) { return x.id === "other"; }) ? "other" : s[0].id);
+
+    ["work", "personal"].forEach(function (lane) {
+      var all = items.filter(function (i) { return statusOf(i) !== "archived" && laneOf(i) === lane; });
+      var o = all.filter(function (i) { return statusOf(i) === "open"; }).length;
+      $("count-" + lane).textContent = o + " open";
+      document.querySelector('[data-act="clear-done"][data-lane="' + lane + '"]').hidden = !(canWrite && all.length > o);
+    });
+
+    var arch = items.filter(function (i) { return statusOf(i) === "archived"; })
+      .sort(function (a, b) { return String(b.archivedAt || "").localeCompare(String(a.archivedAt || "")); });
+    $("archiveSummary").textContent = "Archive (" + arch.length + ")";
+    $("archiveList").innerHTML = arch.length ? arch.map(function (i) {
+      var where = laneOf(i) === "work" ? "Work" : "Personal, " + subName(subIdOf(i));
+      return '<li data-id="' + esc(i.id) + '"><span class="t">' + esc(i.title) + '</span><span class="where">' + esc(where) + "</span>" +
+        (canWrite ? '<button class="btn" data-act="restore">Restore</button><button class="btn danger" data-act="purge">Delete forever</button>' : "") + "</li>";
+    }).join("") : '<li><span class="t">Archived items appear here. Nothing is archived yet.</span></li>';
+    renderSync();
+  }
+
+  function renderSync() {
+    var dot = $("syncDot"), txt = $("syncText");
+    if (syncing) return;
+    if (!meta || !meta.lastSyncAt) { dot.className = "dot none"; txt.textContent = loadedOnce ? "No Plaud check yet." : "Loading your items"; return; }
+    var d = new Date(meta.lastSyncAt), stale = (Date.now() - d.getTime()) > 8 * 3600 * 1000;
+    dot.className = "dot" + (stale ? " stale" : "");
+    var when = (new Date().toDateString() === d.toDateString() ? "today" : fmtDay(d)) + " " + fmtTime(d);
+    txt.textContent = (stale ? "Last Plaud check " : "Checked Plaud ") + when + (meta.note ? ". " + meta.note : "") + (stale ? ". Press Sync now." : "");
+  }
+
+  /* ---------- writes ---------- */
+  function upd(id, data) { return db.doc("items/" + id).update(data).catch(fail); }
+  function stripId(i) { var c = {}; for (var k in i) if (k !== "id") c[k] = i[k]; return c; }
+  function byId(id) { return items.filter(function (x) { return x.id === id; })[0]; }
+
+  function animateRemove(card) {
+    return new Promise(function (res) {
+      if (!card) return res();
+      card.style.maxHeight = card.offsetHeight + "px";
+      void card.offsetHeight;
+      card.classList.add("removing");
+      setTimeout(res, 280);
+    });
+  }
+
+  function addItem(lane, sub, title) {
+    var id = "m_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var list = openIn(lane, sub);
+    var rank = list.length ? rankOf(list[0]) - 1 : 0;
+    return db.doc("items/" + id).set({ title: title, detail: "", lane: lane, sub: sub, rank: rank, done: false, archived: false, origin: "manual", createdAt: new Date().toISOString() }).catch(fail);
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener("submit", function (e) {
+    var f = e.target;
+    if (f.id === "subForm") {
+      e.preventDefault();
+      var inp = $("sub-name"), name = inp.value.trim();
+      if (!name || !db || !canWrite) return;
+      var id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || ("sub-" + Date.now().toString(36));
+      var cur = subs();
+      if (cur.some(function (x) { return x.id === id; })) { toast("That sub-list already exists."); return; }
+      inp.value = "";
+      db.doc("meta/config").set({ subs: cur.concat([{ id: id, name: name }]) }).catch(fail);
+      return;
+    }
+    if (!f.classList || !f.classList.contains("add")) return;
+    e.preventDefault();
+    var inp2 = f.querySelector('input[type=text]'), v = inp2.value.trim();
+    if (!v || !db || !canWrite) return;
+    var lane = f.dataset.lane, sub = lane === "work" ? "" : $("add-sub").value;
+    inp2.value = ""; addItem(lane, sub, v);
+  });
+
+  document.addEventListener("change", function (e) {
+    var cb = e.target; if (!(cb.matches && cb.matches('.card input[type=checkbox]'))) return;
+    if (!db || !canWrite) return;
+    var card = cb.closest(".card"), id = card.dataset.id;
+    if (cb.checked) {
+      card.classList.add("fading");
+      setTimeout(function () { upd(id, { done: true, doneAt: new Date().toISOString() }); }, 520);
+    } else {
+      upd(id, { done: false, doneAt: null });
+    }
+  });
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]"); if (!b) return;
+    var act = b.dataset.act, holder = b.closest("[data-id]"), id = holder && holder.dataset.id;
+    if (act === "toggle") { expanded[id] = !expanded[id]; render(); return; }
+    if (!db || !canWrite) return;
+    var it = id && byId(id), card = holder && holder.classList.contains("card") ? holder : null;
+    if (act === "move" && it) {
+      var to = b.dataset.to;
+      upd(id, { lane: to, sub: to === "work" ? "" : "other", rank: bottomRank(to, to === "work" ? "" : "other") });
+    } else if (act === "undo" && it) {
+      upd(id, { done: false, doneAt: null });
+    } else if (act === "archive" && it) {
+      animateRemove(card).then(function () { return upd(id, { archived: true, archivedAt: new Date().toISOString() }); });
+      toast("Archived", function () { upd(id, { archived: false, archivedAt: null }); });
+    } else if ((act === "delete" || act === "purge") && it) {
+      var copy = stripId(it);
+      animateRemove(card).then(function () { return db.doc("items/" + id).delete().catch(fail); });
+      toast("Deleted", function () { db.doc("items/" + id).set(copy).catch(fail); });
+    } else if (act === "restore" && it) {
+      upd(id, { archived: false, archivedAt: null, done: false, doneAt: null, rank: bottomRank(laneOf(it), subIdOf(it)) });
+    } else if (act === "clear-done") {
+      var lane = b.dataset.lane;
+      var dn = items.filter(function (x) { return statusOf(x) === "done" && laneOf(x) === lane; });
+      if (!dn.length) return;
+      var cards = dn.map(function (x) { return document.querySelector('.card[data-id="' + x.id + '"]'); });
+      Promise.all(cards.map(animateRemove)).then(function () {
+        var now = new Date().toISOString();
+        return Promise.all(dn.map(function (x) { return upd(x.id, { archived: true, archivedAt: now }); }));
+      });
+      toast("Archived " + dn.length + " done item" + (dn.length === 1 ? "" : "s"), function () {
+        dn.forEach(function (x) { upd(x.id, { archived: false, archivedAt: null }); });
+      });
+    }
+  });
+
+  /* ---------- drag and drop (pointer events: mouse, pen and touch) ---------- */
+  document.addEventListener("pointerdown", function (e) {
+    var grip = e.target.closest(".grip"); if (!grip || !canWrite || !db) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.preventDefault();
+    var card = grip.closest(".card"), r = card.getBoundingClientRect();
+    var ghost = card.cloneNode(true);
+    ghost.classList.add("ghost"); ghost.style.width = r.width + "px"; ghost.style.left = r.left + "px"; ghost.style.top = r.top + "px";
+    document.body.appendChild(ghost);
+    card.classList.add("dragging");
+    var line = document.createElement("div"); line.className = "drop-line";
+    drag = { id: card.dataset.id, card: card, ghost: ghost, line: line, offX: e.clientX - r.left, offY: e.clientY - r.top, x: e.clientX, y: e.clientY, group: null, before: null, pid: e.pointerId, grip: grip };
+    try { grip.setPointerCapture(e.pointerId); } catch (err) {}
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    place(); requestAnimationFrame(tick);
+  });
+
+  function onMove(e) {
+    if (!drag || e.pointerId !== drag.pid) return;
+    drag.x = e.clientX; drag.y = e.clientY;
+    drag.ghost.style.left = (e.clientX - drag.offX) + "px";
+    drag.ghost.style.top = (e.clientY - drag.offY) + "px";
+    place();
+  }
+  function tick() {
+    if (!drag) return;
+    var edge = 70, step = 0;
+    if (drag.y < edge) step = -Math.ceil((edge - drag.y) / 5);
+    else if (drag.y > window.innerHeight - edge) step = Math.ceil((drag.y - (window.innerHeight - edge)) / 5);
+    if (step) { window.scrollBy(0, step); place(); }
+    requestAnimationFrame(tick);
+  }
+  function place() {
+    var groups = document.querySelectorAll(".group"), best = null, bd = Infinity;
+    groups.forEach(function (g) {
+      var r = g.getBoundingClientRect();
+      var dx = drag.x < r.left ? r.left - drag.x : drag.x > r.right ? drag.x - r.right : 0;
+      var dy = drag.y < r.top ? r.top - drag.y : drag.y > r.bottom ? drag.y - r.bottom : 0;
+      var d = Math.hypot(dx, dy); if (d < bd) { bd = d; best = g; }
+    });
+    groups.forEach(function (g) { g.classList.toggle("over", g === best); });
+    drag.group = best;
+    var list = best.querySelector(".list"), before = null;
+    var cards = list.querySelectorAll(".card:not(.dragging):not(.is-done)");
+    for (var k = 0; k < cards.length; k++) {
+      var r2 = cards[k].getBoundingClientRect();
+      if (drag.y < r2.top + r2.height / 2) { before = cards[k]; break; }
+    }
+    drag.before = before;
+    list.insertBefore(drag.line, before || list.querySelector(".card.is-done") || null);
+  }
+  function cleanup() {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onCancel);
+    try { drag.grip.releasePointerCapture(drag.pid); } catch (err) {}
+    drag.ghost.remove(); drag.line.remove(); drag.card.classList.remove("dragging");
+    document.querySelectorAll(".group.over").forEach(function (g) { g.classList.remove("over"); });
+  }
+  function onCancel() { if (!drag) return; cleanup(); drag = null; render(); }
+  function onUp(e) {
+    if (!drag || e.pointerId !== drag.pid) return;
+    var d = drag, lane = d.group.dataset.lane, sub = d.group.dataset.sub, beforeId = d.before && d.before.dataset.id;
+    cleanup(); drag = null;
+    var others = openIn(lane, sub, d.id);
+    var idx = beforeId ? others.findIndex(function (i) { return i.id === beforeId; }) : others.length;
+    if (idx < 0) idx = others.length;
+    var prev = others[idx - 1], next = others[idx];
+    var rank = prev && next ? (rankOf(prev) + rankOf(next)) / 2 : prev ? rankOf(prev) + 1 : next ? rankOf(next) - 1 : 0;
+    var me = byId(d.id);
+    var sameSpot = me && laneOf(me) === lane && subIdOf(me) === sub && (!prev || rankOf(prev) < rankOf(me)) && (!next || rankOf(next) > rankOf(me));
+    if (sameSpot) { render(); return; }
+    if (prev && next && Math.abs(rankOf(next) - rankOf(prev)) < 1e-7) {
+      var seq = others.slice(); seq.splice(idx, 0, me);
+      seq.reduce(function (p, it, k) {
+        return p.then(function () { return db.doc("items/" + it.id).update(it.id === d.id ? { lane: lane, sub: sub, rank: k * 10 } : { rank: k * 10 }); });
+      }, Promise.resolve()).catch(fail);
+    } else {
+      upd(d.id, { lane: lane, sub: sub, rank: rank });
+    }
+    render();
+  }
+
+  /* ---------- Sync now: reads Plaud through the viewer's own connector ---------- */
+  function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function jsonOf(res) {
+    var p = res && res.payload;
+    if (p && typeof p === "object") return p;
+    var t = typeof p === "string" ? p : (res && res.content && res.content[0] && res.content[0].text) || "";
+    var a = Math.min.apply(null, [t.indexOf("{"), t.indexOf("[")].filter(function (x) { return x >= 0; }).concat([Infinity]));
+    var z = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
+    if (a === Infinity || z < a) return null;
+    try { return JSON.parse(t.slice(a, z + 1)); } catch (err) { return null; }
+  }
+  function actionLines(tabs) {
+    var out = [];
+    (Array.isArray(tabs) ? tabs : []).forEach(function (t) {
+      String(t.data_content || "").split("\n").forEach(function (ln) {
+        if (/^\s*- \[[ xX]\]/.test(ln) || /^>\s*\d+\./.test(ln)) out.push(ln.trim().slice(0, 400));
+      });
+    });
+    return out.slice(0, 60);
+  }
+  function setStatus(msg) { $("syncDot").className = "dot"; $("syncText").textContent = msg; }
+
+  function syncNow() {
+    if (syncing || !db || !canWrite) return;
+    syncing = true; $("syncBtn").disabled = true; setStatus("Checking Plaud…");
+    var mcp, sample, failed = false;
+    Promise.all([window.claude.use("mcp"), window.claude.use("sample")]).then(function (r) {
+      mcp = r[0]; sample = r[1];
+      if (!mcp || !sample) throw { friendly: "Sync needs connector access in this view. The scheduled refresh still runs." };
+      var from = new Date(Date.now() - 3 * 86400000);
+      return mcp.callTool("Plaud", "list_files", { date_from: ymd(from), date_to: ymd(new Date()), page_size: 50 });
+    }).then(function (res) {
+      var j = jsonOf(res), list = (j && (j.data || j.files || j)) || [];
+      if (!Array.isArray(list)) throw { friendly: "Plaud answered in a format this page could not read." };
+      var done = {}; ((meta && meta.processedFileIds) || []).forEach(function (x) { done[x] = 1; });
+      var fresh = list.filter(function (f) { return f && f.id && !done[f.id]; }).slice(0, 12);
+      if (!fresh.length) return { fresh: [], notes: [] };
+      setStatus("Reading " + fresh.length + " new recording" + (fresh.length === 1 ? "" : "s") + "…");
+      return fresh.reduce(function (p, f) {
+        return p.then(function (acc) {
+          return mcp.callTool("Plaud", "get_note", { file_id: f.id }).then(function (nr) {
+            var lines = actionLines(jsonOf(nr));
+            if (lines.length) acc.push({ name: String(f.name || "").slice(0, 120), date: String(f.start_at || f.created_at || "").slice(0, 10), actions: lines });
+            return acc;
+          });
+        });
+      }, Promise.resolve([])).then(function (notes) { return { fresh: fresh, notes: notes }; });
+    }).then(function (got) {
+      if (!got.notes.length) return { fresh: got.fresh, add: [] };
+      setStatus("Sorting new action items…");
+      var s = subs();
+      var prompt = "You maintain a personal action-item backlog for its owner. Return JSON only, shaped {\"items\":[{\"title\":string,\"detail\":string,\"lane\":\"work\"|\"personal\",\"sub\":string,\"due\":string,\"source\":string}]}.\n" +
+        "Source: lines from the notes of new voice recordings. Lines like '- [ ] text -- *Owner* date' are action items; lines starting with '> 1.' are AI suggestions (use only if they name a clear action for the owner).\n" +
+        "Rules: keep only actions the owner owns or shares (skip ones owned only by others). title: short imperative, under 90 characters. detail: one or two sentences of useful context. due: YYYY-MM-DD only if a date is explicit, else empty. source: short label such as 'Nov 19, 1:1 with Rachel'. lane: 'work' for professional meetings, otherwise 'personal'. sub (personal only, else empty): one of " + JSON.stringify(s.map(function (x) { return { id: x.id, name: x.name }; })) + "; use 'other' if unsure.\n" +
+        "Do NOT include anything that means the same as an already-tracked title (done and archived count as tracked). Already tracked: " + JSON.stringify(items.map(function (i) { return i.title; })) + "\n" +
+        "Recordings: " + JSON.stringify(got.notes);
+      return sample.json(prompt).then(function (out) { return { fresh: got.fresh, add: (out && out.items) || [] }; });
+    }).then(function (r) {
+      var s = subs(), writes = [], ranks = {};
+      r.add.forEach(function (n, k) {
+        if (!n || !n.title) return;
+        var lane = n.lane === "work" ? "work" : "personal";
+        var sub = lane === "work" ? "" : (s.some(function (x) { return x.id === n.sub; }) ? n.sub : "other");
+        var key = lane + "|" + sub; if (ranks[key] == null) ranks[key] = bottomRank(lane, sub);
+        var id = "s_" + Date.now().toString(36) + k;
+        writes.push(db.doc("items/" + id).set({ title: String(n.title).slice(0, 140), detail: String(n.detail || "").slice(0, 400), lane: lane, sub: sub, due: /^\d{4}-\d{2}-\d{2}$/.test(n.due || "") ? n.due : "", source: String(n.source || "").slice(0, 120), rank: ranks[key]++, done: false, archived: false, origin: "plaud", createdAt: new Date().toISOString() }));
+      });
+      var seen = ((meta && meta.processedFileIds) || []).concat(r.fresh.map(function (f) { return f.id; })).slice(-200);
+      var note = writes.length ? (writes.length + " new item" + (writes.length === 1 ? "" : "s")) : "No new items";
+      return Promise.all(writes).then(function () {
+        return db.doc("meta/sync").set({ lastSyncAt: new Date().toISOString(), processedFileIds: seen, note: note });
+      }).then(function () { toast(note + " from Plaud."); });
+    }).catch(function (e) {
+      var code = e && e.code, msg;
+      if (e && e.friendly) msg = e.friendly;
+      else if (code === "server_not_connected") msg = "Plaud is not connected in claude.ai. Add it under Settings, Connectors.";
+      else if (code === "needs_reauth") msg = "Plaud needs to be reconnected in claude.ai Settings, Connectors.";
+      else if (code === "not_in_manifest" || code === "approval_required" || code === "consent_required") msg = "Sync needs your approval to read Plaud. Press Sync now and allow it.";
+      else if (code === "not_granted") msg = "Sample access was declined, so new items could not be sorted.";
+      else msg = "Sync failed" + (code ? " (" + code + ")" : "") + ". Try again shortly.";
+      failed = true; syncing = false; setStatus(msg); $("syncDot").className = "dot stale";
+    }).then(function () {
+      syncing = false; $("syncBtn").disabled = false;
+      if (!failed) renderSync();
+    });
+  }
+
+  /* ---------- boot ---------- */
+  setInterval(function () { if (!drag) renderSync(); }, 60000);
+  $("syncBtn").addEventListener("click", syncNow);
+  render();
+
+  function start() {
+    var timer = setTimeout(function () { $("syncText").textContent = "Can't reach your saved items yet. This page may be out of date."; }, 10000);
+    Promise.all([window.claude.use("db"), window.claude.use("user")]).then(function (r) {
+      db = r[0];
+      if (!db) { clearTimeout(timer); $("syncText").textContent = "Sign in to claude.ai to see and edit your items."; return; }
+      var u = r[1]; if (u && u.can && u.can("data.write") === false) canWrite = false;
+      if (!canWrite) { document.querySelectorAll("form.add, #subForm").forEach(function (f) { f.hidden = true; }); }
+      else { window.claude.use("mcp").then(function (m) { if (m) $("syncBtn").hidden = false; }).catch(function () {}); }
+      db.collection("items").onSnapshot(function (snap) {
+        items = snap.docs.map(function (d) { var x = d.data() || {}; x.id = d.id; return x; });
+        if (!snap.metadata.fromCache) { clearTimeout(timer); loadedOnce = true; }
+        render();
+      }, function (err) { clearTimeout(timer); $("syncText").textContent = "Could not load items (" + (err && err.code) + ")."; });
+      db.doc("meta/sync").onSnapshot(function (s) { meta = s.exists ? s.data() : null; renderSync(); }, function () {});
+      db.doc("meta/config").onSnapshot(function (s) { config = s.exists ? s.data() : null; render(); }, function () {});
+    }).catch(function () { clearTimeout(timer); $("syncText").textContent = "Saved items are unavailable in this view."; });
+  }
+  if (window.claude && window.claude.use) start(); else $("syncText").textContent = "Saved items are unavailable in this view.";
+})();
+</script>
