@@ -89,6 +89,27 @@ const fake = `
   check("overdue chip shows", (await page.locator(".chip.due-over").count()) === 1);
   if (shots) await page.screenshot({ path: path.join(shots, "1-desktop-light.png"), fullPage: true });
 
+  // Regression: dropping in the empty space of a short lane must land in that lane, not in the taller neighbour
+  {
+    const wg = await page.locator('.group[data-lane="work"]').boundingBox();
+    await dragTo('.card[data-id="i1"] .grip', wg.x + wg.width / 2, wg.y + wg.height + 90);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    const s0 = await store();
+    check("Inbox item dropped in the empty space of Work lands in Work", s0.items.i1.lane === "work", s0.items.i1.lane);
+    const s0w = Object.entries(s0.items).filter(([id, i]) => i.lane === "work" && !i.done && !i.archived && id !== "i1").map(([, i]) => i.rank);
+    check("and goes to the bottom of Work", s0.items.i1.rank > Math.max(...s0w), JSON.stringify([s0.items.i1.rank, s0w]));
+    const pg = await page.locator('.group[data-sub="individual"]').boundingBox();
+    await dragTo('.card[data-id="i2"] .grip', pg.x + pg.width / 2, pg.y + pg.height / 2);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    const s1 = await store();
+    check("Inbox item dropped on a Personal sub-list lands there", s1.items.i2.lane === "personal" && s1.items.i2.sub === "individual", JSON.stringify([s1.items.i2.lane, s1.items.i2.sub]));
+    // put them back so later checks keep their starting state
+    await page.evaluate(() => window.claude.use("db").then((db) => Promise.all([db.doc("items/i1").update({ lane: "inbox", rank: 0 }), db.doc("items/i2").update({ lane: "inbox", sub: "", rank: 1 })])));
+    await page.waitForTimeout(300);
+  }
+
   // tick off
   await page.locator('.card[data-id="w2"] input[type=checkbox]').check();
   await page.waitForTimeout(900);
@@ -193,6 +214,10 @@ const fake = `
   await page.waitForTimeout(300);
   s = await store();
   check("Accept moves an Inbox item to its suggested list", s.items.i2.lane === "personal" && s.items.i2.sub === "other", JSON.stringify([s.items.i2.lane, s.items.i2.sub]));
+  await page.selectOption('.card[data-id="i1"] .sendto', "personal:taxes");
+  await page.waitForTimeout(300);
+  s = await store();
+  check("Send to menu moves an Inbox item without dragging", s.items.i1.lane === "personal" && s.items.i1.sub === "taxes", JSON.stringify([s.items.i1.lane, s.items.i1.sub]));
   const wk = await page.locator('.group[data-lane="work"]').boundingBox();
   await dragTo('.card[data-id="i3"] .grip', wk.x + wk.width / 2, wk.y + 8);
   await page.mouse.up();
@@ -223,6 +248,26 @@ const fake = `
   await page.waitForTimeout(700);
   s = await store();
   check("Archive done clears finished items in a lane", s.items.p2.archived === true);
+
+  // narrow window: the Inbox is a capped tray, so Work and Personal stay within reach of a drag
+  await page.evaluate(() => window.claude.use("db").then((db) => Promise.all(Array.from({ length: 40 }, (_, k) => db.doc("items/nin" + k).set({ title: "Inbox backlog " + k, detail: "", lane: "inbox", sub: "", suggestLane: "work", rank: -100 + k, done: false, archived: false, origin: "plaud", createdAt: "2026-11-01T00:00:00Z" })))));
+  await page.setViewportSize({ width: 900, height: 800 });
+  await page.waitForTimeout(500);
+  const inboxBox = await page.locator(".lane.inbox").boundingBox();
+  const workLane = await page.locator(".lane.work").boundingBox();
+  check("narrow window: Inbox is a capped tray and Work is on screen", inboxBox.height <= 400 && workLane.y < 800 - 120, JSON.stringify([inboxBox.height, workLane.y]));
+  if (shots) await page.screenshot({ path: path.join(shots, "3a-narrow.png") });
+  {
+    const wg2 = await page.locator('.group[data-lane="work"]').boundingBox();
+    await dragTo('.card[data-id="nin0"] .grip', wg2.x + wg2.width / 2, Math.min(wg2.y + 40, 760));
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    const sN = await store();
+    check("narrow window: drag from the Inbox tray to Work works", sN.items.nin0.lane === "work", sN.items.nin0.lane);
+  }
+  await page.evaluate(() => Promise.all(Array.from({ length: 40 }, (_, k) => window.claude.use("db").then((db) => db.doc("items/nin" + k).delete()))));
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  await page.waitForTimeout(300);
 
   // long lists scroll inside their lane instead of stretching the page
   await page.evaluate(() => window.claude.use("db").then((db) => Promise.all(Array.from({ length: 30 }, (_, k) => db.doc("items/long" + k).set({ title: "Backlog item number " + k + " with a reasonably long title to wrap", detail: "", lane: "work", sub: "", rank: 100 + k, done: false, archived: false, origin: "manual", createdAt: "2026-11-01T00:00:00Z" })))));

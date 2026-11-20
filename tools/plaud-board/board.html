@@ -100,6 +100,8 @@ h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.12rem; let
 .btn.quiet { background: transparent; border-color: transparent; color: var(--muted); }
 .btn.quiet:hover:not(:disabled) { color: var(--fg); background: var(--surface); }
 .btn.danger:hover:not(:disabled) { border-color: var(--bad); color: var(--bad); background: transparent; }
+.sendto { font-size: 11.5px; color: var(--muted); background: var(--surface-hi); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; max-width: 128px; cursor: pointer; }
+.sendto:hover { border-color: var(--line-hi); color: var(--fg); }
 .btn.accept { padding: 2px 10px; font-size: 11.5px; border-radius: 999px; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
 .btn.accept:hover:not(:disabled) { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 input:focus-visible, select:focus-visible, button:focus-visible, .card input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -113,8 +115,9 @@ input:focus-visible, select:focus-visible, button:focus-visible, .card input[typ
 .stat.hot .n { color: var(--bad); }
 
 /* lanes */
-.lanes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr) minmax(0, 1.25fr); gap: 14px; align-items: start; }
-.lane { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; display: flex; flex-direction: column; min-width: 0; max-height: calc(100vh - 214px); min-height: 280px; overflow: hidden; }
+.lanes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr) minmax(0, 1.25fr); gap: 14px; align-items: stretch; }
+.lane { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; display: flex; flex-direction: column; min-width: 0; max-height: min(calc(100vh - 214px), 900px); min-height: 280px; overflow: hidden; }
+.lane-scroll { flex: 1 1 auto; min-height: 0; }
 .lane-head { padding: 14px 14px 10px; }
 .lane-title { display: flex; align-items: center; gap: 10px; }
 .tone { width: 10px; height: 10px; border-radius: 3px; background: var(--t-work); flex: none; }
@@ -208,14 +211,20 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 
 @media (max-width: 1100px) {
   .lanes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lane.inbox { grid-column: 1 / -1; }
-  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lane.inbox { grid-column: 1 / -1; max-height: min(42vh, 400px); min-height: 200px; }
+  .lane:not(.inbox) { max-height: min(78vh, 800px); }
+  .stats { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .stat { padding: 8px 10px; }
+  .stat .n { font-size: 1.1rem; }
+  .stat .l { font-size: 11px; }
 }
 @media (max-width: 760px) {
   .lanes { grid-template-columns: minmax(0, 1fr); }
-  .lane { max-height: none; overflow: visible; }
-  .lane-scroll { overflow: visible; }
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lane:not(.inbox) { max-height: none; overflow: visible; }
+  .lane:not(.inbox) .lane-scroll { overflow: visible; }
+  .lane.inbox { max-height: min(40vh, 340px); }
+  .stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .stat .l i { display: none; }
   .arch-list { grid-template-columns: minmax(0, 1fr); }
   .search { flex: 1 1 100%; order: 3; }
   .sync { flex: 1 1 100%; order: 2; }
@@ -348,6 +357,10 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     var moves = ["inbox", "work", "personal"].filter(function (l) { return l !== laneOf(i); }).map(function (l) {
       return '<button class="btn" data-act="move" data-to="' + l + '">Move to ' + (l === "work" ? "Work" : l === "personal" ? "Personal" : "Inbox") + "</button>";
     }).join("");
+    var sendto = inbox && canWrite && !done
+      ? '<select class="sendto" aria-label="Send to a list" id="st-' + esc(i.id) + '"><option value="">Send to…</option><option value="work">Work</option><optgroup label="Personal">' +
+        subs().map(function (x) { return '<option value="personal:' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("") + "</optgroup></select>"
+      : "";
     var accept = sugg && canWrite && !done ? '<button class="btn accept" data-act="accept" title="Move to ' + esc(sugg.label) + ', at the bottom">Accept</button>' : "";
     var more = "";
     if (done && canWrite) {
@@ -361,7 +374,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       '<span class="pos" title="Priority position">' + (done ? "" : pad(n)) + "</span>" +
       '<input type="checkbox" id="c-' + esc(i.id) + '" aria-label="' + (done ? "Reopen: " : "Mark done: ") + esc(i.title) + '"' + (done ? " checked" : "") + (canWrite ? "" : " disabled") + ">" +
       '<div class="body"><button class="title" data-act="toggle" aria-expanded="' + open + '">' + esc(i.title) + "</button>" +
-      '<div class="chips">' + chips + accept + "</div>" + more + "</div>" +
+      '<div class="chips">' + chips + accept + sendto + "</div>" + more + "</div>" +
       (canWrite && !done && !q ? '<button class="grip" aria-label="Drag to reorder: ' + esc(i.title) + '" title="Drag to reorder or move to another list"><svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="3" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="15" r="1.5"/><circle cx="10" cy="15" r="1.5"/></svg></button>' : "<span></span>") +
       "</article>";
   }
@@ -497,7 +510,15 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   });
 
   document.addEventListener("change", function (e) {
-    var cb = e.target; if (!(cb.matches && cb.matches('.card input[type=checkbox]'))) return;
+    var cb = e.target;
+    if (cb.matches && cb.matches(".sendto")) {
+      var dest = cb.value; if (!dest || !db || !canWrite) return;
+      var sid = cb.closest(".card").dataset.id, parts = dest.split(":");
+      var dl = parts[0], ds = parts[1] || "";
+      upd(sid, { lane: dl, sub: ds, rank: bottomRank(dl, ds) });
+      return;
+    }
+    if (!(cb.matches && cb.matches('.card input[type=checkbox]'))) return;
     if (!db || !canWrite) return;
     var card = cb.closest(".card"), id = card.dataset.id;
     if (cb.checked) {
@@ -574,7 +595,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   }
   function tick() {
     if (!drag) return;
-    var edge = 64, moved = false;
+    var edge = 64, moved = false, laneBusy = false;
     document.querySelectorAll(".lane-scroll").forEach(function (sc) {
       if (sc.scrollHeight <= sc.clientHeight + 1) return;
       var r = sc.getBoundingClientRect();
@@ -582,12 +603,17 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       var step = 0;
       if (drag.y < r.top + edge && drag.y > r.top - 40) step = -Math.ceil((r.top + edge - drag.y) / 4);
       else if (drag.y > r.bottom - edge && drag.y < r.bottom + 40) step = Math.ceil((drag.y - (r.bottom - edge)) / 4);
-      if (step) { sc.scrollTop += step; moved = true; }
+      if (!step) return;
+      var before = sc.scrollTop; sc.scrollTop += step;
+      if (sc.scrollTop !== before) { moved = true; laneBusy = true; }
     });
-    var wstep = 0;
-    if (drag.y < 50) wstep = -Math.ceil((50 - drag.y) / 4);
-    else if (drag.y > window.innerHeight - 50) wstep = Math.ceil((drag.y - (window.innerHeight - 50)) / 4);
-    if (wstep) { window.scrollBy(0, wstep); moved = true; }
+    // the page only scrolls when no lane under the pointer can still scroll that way
+    if (!laneBusy) {
+      var wstep = 0;
+      if (drag.y < 90) wstep = -Math.ceil((90 - drag.y) / 3);
+      else if (drag.y > window.innerHeight - 90) wstep = Math.ceil((drag.y - (window.innerHeight - 90)) / 3);
+      if (wstep) { window.scrollBy(0, wstep); moved = true; }
+    }
     if (moved) place();
     requestAnimationFrame(tick);
   }
@@ -598,15 +624,23 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     return { left: r.left, right: r.right, top: Math.max(r.top, c.top), bottom: Math.min(r.bottom, c.bottom) };
   }
   function place() {
-    var groups = document.querySelectorAll(".group"), best = null, bd = Infinity;
-    groups.forEach(function (g) {
-      var r = visibleRect(g); if (r.bottom <= r.top) return;
+    // 1. the lane panel under (or nearest to) the pointer, so any empty space in a column is a drop zone
+    var lanes = document.querySelectorAll(".lane"), bestLane = null, bd = Infinity;
+    lanes.forEach(function (l) {
+      var r = l.getBoundingClientRect();
       var dx = drag.x < r.left ? r.left - drag.x : drag.x > r.right ? drag.x - r.right : 0;
       var dy = drag.y < r.top ? r.top - drag.y : drag.y > r.bottom ? drag.y - r.bottom : 0;
-      var d = Math.hypot(dx, dy); if (d < bd) { bd = d; best = g; }
+      var d = Math.hypot(dx, dy); if (d < bd) { bd = d; bestLane = l; }
+    });
+    // 2. the nearest list inside that lane, by vertical distance to its visible part
+    var groups = bestLane.querySelectorAll(".group"), best = null, gd = Infinity;
+    groups.forEach(function (g) {
+      var r = visibleRect(g); if (r.bottom <= r.top) return;
+      var dy = drag.y < r.top ? r.top - drag.y : drag.y > r.bottom ? drag.y - r.bottom : 0;
+      if (dy < gd) { gd = dy; best = g; }
     });
     if (!best) best = groups[0];
-    groups.forEach(function (g) { g.classList.toggle("over", g === best); });
+    document.querySelectorAll(".group").forEach(function (g) { g.classList.toggle("over", g === best); });
     drag.group = best;
     var list = best.querySelector(".list"), before = null;
     var cards = list.querySelectorAll(".card:not(.dragging):not(.is-done)");
