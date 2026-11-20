@@ -4,7 +4,7 @@ const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
 
-const html = fs.readFileSync(path.join(__dirname, "..", "board.html"), "utf8");
+const html = fs.readFileSync(process.env.BOARD_FILE || path.join(__dirname, "..", "board.html"), "utf8");
 const shots = process.argv[2] || null;
 if (shots) fs.mkdirSync(shots, { recursive: true });
 
@@ -12,7 +12,9 @@ const fake = `
 (function () {
   var store = { items: {}, meta: {} };
   var subs = [];
-  function snap(id, d) { return { id: id, exists: d != null, data: function () { return d ? JSON.parse(JSON.stringify(d)) : undefined; }, metadata: { fromCache: false, hasPendingWrites: false } }; }
+  // The real runtime hands out frozen snapshot data, so the fake does too.
+  function deepFreeze(o) { Object.getOwnPropertyNames(o).forEach(function (k) { var v = o[k]; if (v && typeof v === "object") deepFreeze(v); }); return Object.freeze(o); }
+  function snap(id, d) { return { id: id, exists: d != null, data: function () { return d ? deepFreeze(JSON.parse(JSON.stringify(d))) : undefined; }, metadata: { fromCache: false, hasPendingWrites: false } }; }
   function notify() { subs.forEach(function (s) { s(); }); }
   function parts(p) { var a = p.split("/"); return [a[0], a.slice(1).join("/")]; }
   var db = {
@@ -61,6 +63,9 @@ const fake = `
     mk("p3", "Practice the breathing exercise", "personal", "individual", 0);
     mk("p4", "Plan the date night", "personal", "couples", 0);
     mk("p5", "Renew the car registration", "personal", "other", 0);
+    mk("i1", "Send the vendor contract to legal", "inbox", "", 0, { suggestLane: "work", hint: "likely_done" });
+    mk("i2", "Book the dental cleaning", "inbox", "", 1, { suggestLane: "personal", suggestSub: "other" });
+    mk("i3", "Ask the accountant about the HSA form", "inbox", "", 2, { suggestLane: "personal", suggestSub: "taxes" });
     S.meta.sync = { lastSyncAt: now, note: "Seeded for test.", processedFileIds: ["of_old"] };
     S.meta.config = { subs: [{ id: "financial", name: "Financial" }, { id: "taxes", name: "Taxes" }, { id: "individual", name: "Individual therapy" }, { id: "couples", name: "Couples therapy" }, { id: "other", name: "Other" }] };
     return true;
@@ -73,7 +78,8 @@ const fake = `
   const check = (name, ok, info) => { results.push([name, !!ok, info || ""]); };
   const store = () => page.evaluate(() => JSON.parse(JSON.stringify(window.__store)));
 
-  check("renders 8 open cards", (await page.locator(".card").count()) === 8, await page.locator(".card").count());
+  check("renders 11 open cards (3 in the Inbox)", (await page.locator(".card").count()) === 11, await page.locator(".card").count());
+  check("Inbox shows suggestions and a may-be-done hint", (await page.locator("#list-inbox .chip.suggest").count()) === 3 && (await page.locator("#list-inbox .chip", { hasText: "May be done" }).count()) === 1);
   check("personal has 5 sub-lists", (await page.locator("#subs .group").count()) === 5);
   check("overdue chip shows", (await page.locator(".chip.due-over").count()) === 1);
   if (shots) await page.screenshot({ path: path.join(shots, "1-desktop-light.png"), fullPage: true });
@@ -177,6 +183,21 @@ const fake = `
   check("add sub-list saves config", s.meta.config.subs.some((x) => x.id === "home-projects"));
   check("new sub-list renders", (await page.locator('.group[data-sub="home-projects"]').count()) === 1);
 
+  // Inbox: accept a suggestion, then drag another item to the top of Work
+  await page.locator('.card[data-id="i2"] [data-act="accept"]').click();
+  await page.waitForTimeout(300);
+  s = await store();
+  check("Accept moves an Inbox item to its suggested list", s.items.i2.lane === "personal" && s.items.i2.sub === "other", JSON.stringify([s.items.i2.lane, s.items.i2.sub]));
+  const wk = await page.locator('.group[data-lane="work"]').boundingBox();
+  await dragTo('.card[data-id="i3"] .grip', wk.x + wk.width / 2, wk.y + 8);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  s = await store();
+  const workRanks = Object.entries(s.items).filter(([id, i]) => i.lane === "work" && !i.done && !i.archived && id !== "i3").map(([, i]) => i.rank);
+  check("drag from Inbox to top of Work is saved", s.items.i3.lane === "work" && s.items.i3.rank < Math.min(...workRanks), JSON.stringify([s.items.i3.rank, workRanks]));
+  check("page order matches the saved order", await page.evaluate(() => document.querySelector("#list-work .card").dataset.id === "i3"));
+  const savedRank = s.items.i3.rank;
+
   // sync
   await page.waitForSelector("#syncBtn:not([hidden])");
   await page.click("#syncBtn");
@@ -185,7 +206,8 @@ const fake = `
   const synced = Object.values(s.items).filter((i) => i.origin === "plaud" && /budget draft|dentist/.test(i.title));
   const calls = await page.evaluate(() => window.__calls);
   check("sync reads only the new recording", calls.filter((c) => c[1] === "get_note").length === 1 && calls.filter((c) => c[1] === "get_note")[0][2].file_id === "of_new1");
-  check("sync adds sorted items", synced.length === 2 && synced.find((i) => /dentist/.test(i.title)).sub === "other" && synced.find((i) => /budget/.test(i.title)).lane === "work");
+  check("sync puts new items in the Inbox with a suggestion", synced.length === 2 && synced.every((i) => i.lane === "inbox") && synced.find((i) => /dentist/.test(i.title)).suggestSub === "other" && synced.find((i) => /budget/.test(i.title)).suggestLane === "work");
+  check("sync never reorders items you already placed", s.items.i3.lane === "work" && s.items.i3.rank === savedRank);
   check("sync records processed ids", s.meta.sync.processedFileIds.includes("of_new1") && /2 new items/.test(s.meta.sync.note), s.meta.sync.note);
   check("new items have a New chip", (await page.locator(".chip.new").count()) >= 2);
 

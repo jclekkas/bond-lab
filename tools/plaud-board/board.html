@@ -45,7 +45,7 @@ body {
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 button { font: inherit; color: inherit; }
-.wrap { max-width: 1180px; margin: 0 auto; }
+.wrap { max-width: 1480px; margin: 0 auto; }
 
 header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; margin-bottom: 18px; }
 h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.7rem; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
@@ -54,7 +54,8 @@ h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.7rem; lett
 .dot.stale { background: var(--warn); }
 .dot.none { background: var(--line); }
 
-.lanes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .lanes { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lane.inbox { grid-column: 1 / -1; } }
 .lane { background: var(--surface-2); border-radius: 14px; padding: 14px; min-width: 0; }
 .lane-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 2px 4px 10px; }
 .lane-head h2 { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; margin: 0; }
@@ -70,6 +71,12 @@ h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.7rem; lett
 input::placeholder { color: var(--muted); }
 input:focus-visible, select:focus-visible, button:focus-visible, .card input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+.lane.inbox { background: var(--accent-soft); }
+.lane.inbox .group.over { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.list[data-lane="inbox"]:empty::before { content: "Nothing waiting. New Plaud items land here."; }
+.chip.suggest { color: var(--accent); background: var(--accent-soft); }
+.lane.inbox .chip.suggest { background: var(--surface-2); }
+.btn.accept { padding: 2px 9px; font-size: 11.5px; border-radius: 999px; color: var(--accent); border-color: var(--accent); background: transparent; }
 .group { border-radius: 10px; padding: 4px; margin: 0 -4px 10px; transition: background .15s; }
 .group:last-child { margin-bottom: 0; }
 .group.over { background: var(--accent-soft); }
@@ -151,6 +158,14 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   </header>
 
   <div class="lanes">
+    <section class="lane inbox" aria-labelledby="h-inbox">
+      <div class="lane-head">
+        <div><h2 id="h-inbox">Inbox</h2><div class="sub">New from Plaud. Drag each item into the right list.</div></div>
+        <div class="lane-tools"><button class="btn quiet" data-act="clear-done" data-lane="inbox" hidden>Archive done</button><span class="count" id="count-inbox"></span></div>
+      </div>
+      <div class="group" data-lane="inbox" data-sub=""><div class="list" id="list-inbox" data-lane="inbox" data-sub=""></div></div>
+    </section>
+
     <section class="lane" aria-labelledby="h-work">
       <div class="lane-head">
         <div><h2 id="h-work">Work</h2><div class="sub">Professional</div></div>
@@ -185,7 +200,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
-  function laneOf(i) { return i.lane === "work" ? "work" : "personal"; }
+  function laneOf(i) { return i.lane === "work" ? "work" : (i.lane === "inbox" ? "inbox" : "personal"); }
   function rankOf(i) { return typeof i.rank === "number" ? i.rank : 0; }
   function statusOf(i) { return i.archived ? "archived" : (i.done ? "done" : "open"); }
   function fmtDay(d) { return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
@@ -193,11 +208,19 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   function subs() { return (config && Array.isArray(config.subs) && config.subs.length) ? config.subs : DEFAULT_SUBS; }
   function subName(id) { var s = subs().filter(function (x) { return x.id === id; })[0]; return s ? s.name : id; }
   function subIdOf(i) {
-    if (laneOf(i) === "work") return "";
+    if (laneOf(i) !== "personal") return "";
     var s = subs();
     for (var k = 0; k < s.length; k++) if (s[k].id === i.sub) return i.sub;
     for (var m = 0; m < s.length; m++) if (s[m].id === "other") return "other";
     return s[s.length - 1].id;
+  }
+  function suggestion(i) {
+    if (i.suggestLane === "work") return { lane: "work", sub: "", label: "Work" };
+    if (i.suggestLane === "personal") {
+      var sid = subs().some(function (x) { return x.id === i.suggestSub; }) ? i.suggestSub : "other";
+      return { lane: "personal", sub: sid, label: "Personal, " + subName(sid) };
+    }
+    return null;
   }
   function groupItems(lane, sub) {
     return items.filter(function (i) { return statusOf(i) !== "archived" && laneOf(i) === lane && subIdOf(i) === sub; })
@@ -230,21 +253,26 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   function cardHtml(i, n) {
     var done = statusOf(i) === "done", open = !!expanded[i.id];
     var isNew = !done && i.origin === "plaud" && i.createdAt && (Date.now() - new Date(i.createdAt).getTime()) < 24 * 3600 * 1000;
-    var chips = dueChip(i.due) + (isNew ? '<span class="chip new">New</span>' : "");
-    var other = laneOf(i) === "work" ? "personal" : "work";
+    var inbox = laneOf(i) === "inbox";
+    var sugg = inbox ? suggestion(i) : null;
+    var chips = dueChip(i.due) + (i.hint === "likely_done" && !done ? '<span class="chip keep">May be done</span>' : "") + (sugg ? '<span class="chip suggest">Suggested: ' + esc(sugg.label) + "</span>" : "") + (isNew ? '<span class="chip new">New</span>' : "");
+    var moves = ["inbox", "work", "personal"].filter(function (l) { return l !== laneOf(i); }).map(function (l) {
+      return '<button class="btn" data-act="move" data-to="' + l + '">Move to ' + (l === "work" ? "Work" : l === "personal" ? "Personal" : "Inbox") + "</button>";
+    }).join("");
+    var accept = sugg && canWrite && !done ? '<button class="btn accept" data-act="accept" title="Move to ' + esc(sugg.label) + ', at the bottom">Accept</button>' : "";
     var more = "";
     if (done && canWrite) {
       more = '<div class="acts"><button class="btn" data-act="undo">Undo</button><button class="btn" data-act="archive">Archive</button><button class="btn danger" data-act="delete">Delete</button></div>';
     } else if (open) {
       more = '<div class="more">' + (i.detail ? "<p>" + esc(i.detail) + "</p>" : "") +
         (i.source ? '<div class="src">From: ' + esc(i.source) + "</div>" : "") +
-        (canWrite ? '<div class="acts"><button class="btn" data-act="move" data-to="' + other + '">Move to ' + (other === "work" ? "Work" : "Personal") + '</button><button class="btn" data-act="archive">Archive</button><button class="btn danger" data-act="delete">Delete</button></div>' : "") + "</div>";
+        (canWrite ? '<div class="acts">' + moves + '<button class="btn" data-act="archive">Archive</button><button class="btn danger" data-act="delete">Delete</button></div>' : "") + "</div>";
     }
     return '<article class="card' + (done ? " is-done" : "") + '" data-id="' + esc(i.id) + '">' +
       '<span class="pos" title="Priority position">' + (done ? "" : n) + "</span>" +
       '<input type="checkbox" id="c-' + esc(i.id) + '" aria-label="' + (done ? "Reopen: " : "Mark done: ") + esc(i.title) + '"' + (done ? " checked" : "") + (canWrite ? "" : " disabled") + ">" +
       '<div class="body"><button class="title" data-act="toggle" aria-expanded="' + open + '">' + esc(i.title) + "</button>" +
-      '<div class="chips">' + chips + "</div>" + more + "</div>" +
+      '<div class="chips">' + chips + accept + "</div>" + more + "</div>" +
       (canWrite && !done ? '<button class="grip" aria-label="Drag to reorder: ' + esc(i.title) + '" title="Drag to reorder or move to another list"><svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="3" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="15" r="1.5"/><circle cx="10" cy="15" r="1.5"/></svg></button>' : "<span></span>") +
       "</article>";
   }
@@ -259,6 +287,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     pendingRender = false;
     var s = subs();
 
+    $("list-inbox").innerHTML = listHtml("inbox", "");
     $("list-work").innerHTML = listHtml("work", "");
     $("subs").innerHTML = s.map(function (x) {
       var open = openIn("personal", x.id).length;
@@ -270,7 +299,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     sel.innerHTML = s.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("");
     sel.value = cur && s.some(function (x) { return x.id === cur; }) ? cur : (s.some(function (x) { return x.id === "other"; }) ? "other" : s[0].id);
 
-    ["work", "personal"].forEach(function (lane) {
+    ["inbox", "work", "personal"].forEach(function (lane) {
       var all = items.filter(function (i) { return statusOf(i) !== "archived" && laneOf(i) === lane; });
       var o = all.filter(function (i) { return statusOf(i) === "open"; }).length;
       $("count-" + lane).textContent = o + " open";
@@ -281,7 +310,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       .sort(function (a, b) { return String(b.archivedAt || "").localeCompare(String(a.archivedAt || "")); });
     $("archiveSummary").textContent = "Archive (" + arch.length + ")";
     $("archiveList").innerHTML = arch.length ? arch.map(function (i) {
-      var where = laneOf(i) === "work" ? "Work" : "Personal, " + subName(subIdOf(i));
+      var where = laneOf(i) === "work" ? "Work" : laneOf(i) === "inbox" ? "Inbox" : "Personal, " + subName(subIdOf(i));
       return '<li data-id="' + esc(i.id) + '"><span class="t">' + esc(i.title) + '</span><span class="where">' + esc(where) + "</span>" +
         (canWrite ? '<button class="btn" data-act="restore">Restore</button><button class="btn danger" data-act="purge">Delete forever</button>' : "") + "</li>";
     }).join("") : '<li><span class="t">Archived items appear here. Nothing is archived yet.</span></li>';
@@ -361,8 +390,11 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     if (!db || !canWrite) return;
     var it = id && byId(id), card = holder && holder.classList.contains("card") ? holder : null;
     if (act === "move" && it) {
-      var to = b.dataset.to;
-      upd(id, { lane: to, sub: to === "work" ? "" : "other", rank: bottomRank(to, to === "work" ? "" : "other") });
+      var to = b.dataset.to, tsub = to === "personal" ? "other" : "";
+      upd(id, { lane: to, sub: tsub, rank: bottomRank(to, tsub) });
+    } else if (act === "accept" && it) {
+      var sg = suggestion(it);
+      if (sg) upd(id, { lane: sg.lane, sub: sg.sub, rank: bottomRank(sg.lane, sg.sub) });
     } else if (act === "undo" && it) {
       upd(id, { done: false, doneAt: null });
     } else if (act === "archive" && it) {
@@ -463,6 +495,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     var me = byId(d.id);
     var sameSpot = me && laneOf(me) === lane && subIdOf(me) === sub && (!prev || rankOf(prev) < rankOf(me)) && (!next || rankOf(next) > rankOf(me));
     if (sameSpot) { render(); return; }
+    if (me) { me.lane = lane; me.sub = sub; me.rank = rank; }
     if (prev && next && Math.abs(rankOf(next) - rankOf(prev)) < 1e-7) {
       var seq = others.slice(); seq.splice(idx, 0, me);
       seq.reduce(function (p, it, k) {
@@ -537,9 +570,9 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
         if (!n || !n.title) return;
         var lane = n.lane === "work" ? "work" : "personal";
         var sub = lane === "work" ? "" : (s.some(function (x) { return x.id === n.sub; }) ? n.sub : "other");
-        var key = lane + "|" + sub; if (ranks[key] == null) ranks[key] = bottomRank(lane, sub);
+        if (ranks.inbox == null) ranks.inbox = bottomRank("inbox", "");
         var id = "s_" + Date.now().toString(36) + k;
-        writes.push(db.doc("items/" + id).set({ title: String(n.title).slice(0, 140), detail: String(n.detail || "").slice(0, 400), lane: lane, sub: sub, due: /^\d{4}-\d{2}-\d{2}$/.test(n.due || "") ? n.due : "", source: String(n.source || "").slice(0, 120), rank: ranks[key]++, done: false, archived: false, origin: "plaud", createdAt: new Date().toISOString() }));
+        writes.push(db.doc("items/" + id).set({ title: String(n.title).slice(0, 140), detail: String(n.detail || "").slice(0, 400), lane: "inbox", sub: "", suggestLane: lane, suggestSub: sub, due: /^\d{4}-\d{2}-\d{2}$/.test(n.due || "") ? n.due : "", source: String(n.source || "").slice(0, 120), rank: ranks.inbox++, done: false, archived: false, origin: "plaud", createdAt: new Date().toISOString() }));
       });
       var seen = ((meta && meta.processedFileIds) || []).concat(r.fresh.map(function (f) { return f.id; })).slice(-200);
       var note = writes.length ? (writes.length + " new item" + (writes.length === 1 ? "" : "s")) : "No new items";
@@ -575,7 +608,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       if (!canWrite) { document.querySelectorAll("form.add, #subForm").forEach(function (f) { f.hidden = true; }); }
       else { window.claude.use("mcp").then(function (m) { if (m) $("syncBtn").hidden = false; }).catch(function () {}); }
       db.collection("items").onSnapshot(function (snap) {
-        items = snap.docs.map(function (d) { var x = d.data() || {}; x.id = d.id; return x; });
+        items = snap.docs.map(function (d) { var x = Object.assign({}, d.data() || {}); x.id = d.id; return x; });
         if (!snap.metadata.fromCache) { clearTimeout(timer); loadedOnce = true; }
         render();
       }, function (err) { clearTimeout(timer); $("syncText").textContent = "Could not load items (" + (err && err.code) + ")."; });
