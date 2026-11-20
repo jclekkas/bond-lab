@@ -297,7 +297,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     <div class="sync"><span class="pill"><span class="dot none" id="syncDot"></span><span id="syncText">Loading your items</span></span><button class="btn" id="syncBtn" title="Pull new action items from Plaud (R)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Refresh from Plaud</button><button class="btn primary" id="addBtn">+ Add task</button></div>
   </header>
 
-  <div class="ro" id="roBanner" role="status" hidden><b>Read-only view.</b> Changes cannot be saved from this browser, so editing is turned off. Open the board while signed in to claude.ai as the owner to edit it.</div>
+  <div class="ro" id="roBanner" role="status" hidden><b>Read-only view.</b> Changes cannot be saved from this browser, so editing is turned off. You are probably signed in to a different claude.ai account than the one that owns this board, or viewing through a shared link. Open it while signed in to the owning account (a separate browser profile works well).</div>
 
   <section class="stats" id="stats" aria-label="Summary"></section>
 
@@ -935,7 +935,13 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
     var mcp, sample, failed = false;
     Promise.all([window.claude.use("mcp"), window.claude.use("sample")]).then(function (r) {
       mcp = r[0]; sample = r[1];
-      if (!mcp || !sample) throw { friendly: "Refresh needs Plaud access, which this view does not have. Open the board while signed in to claude.ai. The automatic refresh still runs at 8:07, 13:07 and 19:07 Eastern." };
+      if (!mcp) {
+        return window.claude.use("user").then(function (u) {
+          var why = !u ? "You appear to be viewing through a shared link or a different claude.ai account." : (u.isOwner && !u.isOwner() ? "You are signed in, but not as the account that owns this board." : "Plaud is not connected or not allowed for this account in this view.");
+          throw { friendly: "Refresh needs your Plaud connection, and this view can't use it. " + why + " Open the board while signed in to the owning claude.ai account. The automatic refresh still runs at 8:07, 13:07 and 19:07 Eastern." };
+        });
+      }
+      if (!sample) throw { friendly: "Refresh needs Claude to sort the new items, and this view can't use that step. Open the board while signed in to the owning claude.ai account." };
       var since = meta && meta.lastSyncAt ? new Date(new Date(meta.lastSyncAt).getTime() - 86400000) : new Date(Date.now() - 3 * 86400000);
       var floor = new Date(Date.now() - 14 * 86400000); if (since < floor) since = floor;
       return mcp.callTool("Plaud", "list_files", { date_from: ymd(since), date_to: ymd(new Date()), page_size: 50 });
@@ -1013,7 +1019,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       db = r[0];
       if (!db) { clearTimeout(timer); $("syncText").textContent = "Sign in to claude.ai to see and edit your items."; return; }
       var u = r[1]; if (u && u.can && u.can("data.write") === false) canWrite = false;
-      if (!canWrite) { document.querySelectorAll("form.add, #subForm").forEach(function (f) { f.hidden = true; }); $("addBtn").hidden = true; $("syncBtn").hidden = true; }
+      if (!canWrite) { document.querySelectorAll("form.add, .subadd").forEach(function (f) { f.hidden = true; }); $("addBtn").hidden = true; $("syncBtn").hidden = true; $("roBanner").hidden = false; }
 
       db.collection("items").onSnapshot(function (snap) {
         items = snap.docs.map(function (d) { var x = Object.assign({}, d.data() || {}); x.id = d.id; return x; });

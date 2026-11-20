@@ -39,7 +39,7 @@ const fake = `
     return Promise.resolve({ payload: [{ data_type: "auto_sum_note", data_content: "## 1. Topic\\n### Action Items\\n- [ ] Send the budget draft to Sam. -- *Chris Lekkas* 2026-11-21\\n- [ ] Review the PRD. -- *Sam*" }] });
   } };
   var sample = { json: function (prompt) { window.__calls.push(["sample", prompt.length]); return Promise.resolve({ items: [{ title: "Send the budget draft to Sam", detail: "Needed before the Friday review.", lane: "work", sub: "", due: "2026-11-21", source: "Nov 20, 1:1 with Sam" }, { title: "Book the dentist", detail: "", lane: "personal", sub: "other", due: "", source: "Nov 20, call" }] }); } };
-  window.claude = { use: function (n) { return Promise.resolve(n === "db" ? db : n === "user" ? { can: function () { return true; } } : n === "mcp" ? mcp : n === "sample" ? sample : null); } };
+  window.claude = { use: function (n) { return Promise.resolve(n === "db" ? db : n === "user" ? { can: function () { return !window.__noWrite; }, isOwner: function () { return !window.__noWrite; } } : n === "mcp" ? mcp : n === "sample" ? sample : null); } };
 })();`;
 
 (async () => {
@@ -401,7 +401,7 @@ const fake = `
   await page.evaluate(() => document.activeElement && document.activeElement.blur());
   await page.keyboard.press("r");
   await page.waitForTimeout(400);
-  check("R refreshes, and without Plaud access the page says so", /needs Plaud access/.test(await page.locator("#syncText").innerText()));
+  check("R refreshes, and without Plaud access the page says so", /Plaud connection/.test(await page.locator("#syncText").innerText()) && /owning claude\.ai account/.test(await page.locator("#syncText").innerText()));
   await page.evaluate(() => { window.claude.use = window.__use; });
 
   // a refused save (read-only viewer) switches the page to a clear read-only state instead of a vague error
@@ -426,6 +426,16 @@ const fake = `
   }
   check("no console or page errors", errors.length === 0, errors.join(" | "));
 
+  {
+    const p2 = await ctx.newPage();
+    await p2.addInitScript("window.__noWrite = true;");
+    await p2.addInitScript(fake);
+    await p2.route("http://board.test/", (route) => route.fulfill({ contentType: "text/html", body: '<!doctype html><html><head><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>[hidden]{display:none!important}</style></head><body>' + html + "</body></html>" }));
+    await p2.goto("http://board.test/", { waitUntil: "domcontentloaded" });
+    await p2.waitForTimeout(600);
+    check("a viewer without write access sees the read-only banner at once", await p2.locator("#roBanner").isVisible() && !(await p2.locator("#addBtn").isVisible()) && !(await p2.locator("#syncBtn").isVisible()));
+    await p2.close();
+  }
   let bad = 0;
   results.forEach(([n, ok, info]) => { if (!ok) bad++; console.log((ok ? "PASS " : "FAIL ") + n + (info !== "" && !ok ? "  [" + info + "]" : "")); });
   console.log(bad ? bad + " FAILED" : "ALL " + results.length + " PASSED");
