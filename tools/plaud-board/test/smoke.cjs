@@ -43,7 +43,7 @@ const fake = `
 
 (async () => {
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1100 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -81,6 +81,11 @@ const fake = `
   check("renders 11 open cards (3 in the Inbox)", (await page.locator(".card").count()) === 11, await page.locator(".card").count());
   check("Inbox shows suggestions and a may-be-done hint", (await page.locator("#list-inbox .chip.suggest").count()) === 3 && (await page.locator("#list-inbox .chip", { hasText: "May be done" }).count()) === 1);
   check("personal has 5 sub-lists", (await page.locator("#subs .group").count()) === 5);
+  check("summary strip shows five tiles", (await page.locator("#stats .stat").count()) === 5);
+  await page.fill("#search", "household");
+  check("search filters cards", (await page.locator(".card").count()) === 1);
+  await page.fill("#search", "");
+  check("clearing search restores cards", (await page.locator(".card").count()) === 11);
   check("overdue chip shows", (await page.locator(".chip.due-over").count()) === 1);
   if (shots) await page.screenshot({ path: path.join(shots, "1-desktop-light.png"), fullPage: true });
 
@@ -219,11 +224,32 @@ const fake = `
   s = await store();
   check("Archive done clears finished items in a lane", s.items.p2.archived === true);
 
+  // long lists scroll inside their lane instead of stretching the page
+  await page.evaluate(() => window.claude.use("db").then((db) => Promise.all(Array.from({ length: 30 }, (_, k) => db.doc("items/long" + k).set({ title: "Backlog item number " + k + " with a reasonably long title to wrap", detail: "", lane: "work", sub: "", rank: 100 + k, done: false, archived: false, origin: "manual", createdAt: "2026-11-01T00:00:00Z" })))));
+  await page.waitForTimeout(400);
+  check("long Work list scrolls inside its lane", await page.evaluate(() => { const sc = document.querySelector(".lane.work .lane-scroll"); return sc.scrollHeight > sc.clientHeight + 50 && document.documentElement.scrollHeight < window.innerHeight + 400; }));
+  if (shots) await page.screenshot({ path: path.join(shots, "3b-long-list.png") });
+  const firstId = await page.locator("#list-work .card").first().getAttribute("data-id");
+  const gb = await page.locator("#list-work .card .grip").first().boundingBox();
+  await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2);
+  await page.mouse.down();
+  const sb = await page.locator(".lane.work .lane-scroll").boundingBox();
+  await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height - 14, { steps: 10 });
+  await page.waitForTimeout(2500);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  s = await store();
+  check("dragging near the lane edge autoscrolls a long list", s.items[firstId].rank > 112, String(s.items[firstId].rank));
+  await page.evaluate(() => Promise.all(Array.from({ length: 30 }, (_, k) => window.claude.use("db").then((db) => db.doc("items/long" + k).delete()))));
+  await page.waitForTimeout(300);
+
   if (shots) {
     await page.screenshot({ path: path.join(shots, "4-after-actions.png"), fullPage: true });
     await page.emulateMedia({ colorScheme: "dark" });
+    await page.waitForTimeout(600);
     await page.screenshot({ path: path.join(shots, "5-desktop-dark.png"), fullPage: true });
     await page.emulateMedia({ colorScheme: "light" });
+    await page.waitForTimeout(600);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(200);
     await page.screenshot({ path: path.join(shots, "6-phone.png"), fullPage: true });
