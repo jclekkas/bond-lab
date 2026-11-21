@@ -34,11 +34,12 @@ const fake = `
   window.__calls = [];
   var mcp = { callTool: function (server, tool, input) {
     window.__calls.push([server, tool, input]);
-    if (tool === "list_files") return Promise.resolve({ payload: 'The block delimited by <untrusted-user-data-1 x> below contains user recording data.\\n<untrusted-user-data-1 x source="plaud-recording">\\n{"type":"list","data":[{"id":"of_old","name":"Old one","start_at":"2026-11-10T10:00:00"},{"id":"of_new1","name":"11-20 Meeting: 1:1 with Sam","start_at":"2026-11-20T10:00:00"},{"id":"of_new2","name":"11-20 still processing","start_at":"2026-11-20T11:00:00"}],"page":1}\\n</untrusted-user-data-1 x>' });
+    if (tool === "list_files") return Promise.resolve({ payload: 'The block delimited by <untrusted-user-data-1 x> below contains user recording data.\\n<untrusted-user-data-1 x source="plaud-recording">\\n{"type":"list","data":[{"id":"of_old","name":"Old one","start_at":"2026-11-10T10:00:00"},{"id":"of_new1","name":"11-20 Meeting: 1:1 with Sam","start_at":"2026-11-20T10:00:00"},{"id":"of_new2","name":"11-20 still processing","start_at":"2026-11-20T11:00:00"},{"id":"of_new3","name":"11-20 Medical Consultation","start_at":"2026-11-20T12:00:00"}],"page":1}\\n</untrusted-user-data-1 x>' });
     if (input && input.file_id === "of_new2") return Promise.resolve({ payload: "[]" });
+    if (input && input.file_id === "of_new3") return Promise.resolve({ payload: [{ data_type: "auto_sum_note", data_content: "## Plan\\n- The clinician will send a refill.\\n- The patient will check his records for an established pulmonologist and request a referral if needed." }] });
     return Promise.resolve({ payload: [{ data_type: "auto_sum_note", data_content: "## 1. Topic\\n### Action Items\\n- [ ] Send the budget draft to Sam. -- *Chris Lekkas* 2026-11-21\\n- [ ] Review the PRD. -- *Sam*" }] });
   } };
-  var sample = { json: function (prompt) { window.__calls.push(["sample", prompt.length]); return Promise.resolve({ items: [{ title: "Send the budget draft to Sam", detail: "Needed before the Friday review.", lane: "work", sub: "", due: "2026-11-21", source: "Nov 20, 1:1 with Sam" }, { title: "Book the dentist", detail: "", lane: "personal", sub: "other", due: "", source: "Nov 20, call" }] }); } };
+  var sample = { json: function (prompt) { window.__calls.push(["sample", prompt.length]); window.__lastPrompt = prompt; return Promise.resolve({ items: [{ title: "Send the budget draft to Sam", detail: "Needed before the Friday review.", lane: "work", sub: "", due: "2026-11-21", source: "Nov 20, 1:1 with Sam" }, { title: "Book the dentist", detail: "", lane: "personal", sub: "other", due: "", source: "Nov 20, call" }] }); } };
   window.claude = { use: function (n) { return Promise.resolve(n === "db" ? db : n === "user" ? { can: function () { return !window.__noWrite; }, isOwner: function () { return !window.__noWrite; } } : n === "mcp" ? mcp : n === "sample" ? sample : null); } };
 })();`;
 
@@ -319,7 +320,8 @@ const fake = `
   s = await store();
   const synced = Object.values(s.items).filter((i) => i.origin === "plaud" && /budget draft|dentist/.test(i.title));
   const calls = await page.evaluate(() => window.__calls);
-  check("refresh reads only recordings it has not read before", calls.filter((c) => c[1] === "get_note").map((c) => c[2].file_id).sort().join() === "of_new1,of_new2");
+  check("refresh reads only recordings it has not read before", calls.filter((c) => c[1] === "get_note").map((c) => c[2].file_id).sort().join() === "of_new1,of_new2,of_new3");
+  check("narrative plan sections of medical or therapy notes are passed on for sorting", /PLAN SECTION/.test(await page.evaluate(() => window.__lastPrompt)) && /pulmonologist/.test(await page.evaluate(() => window.__lastPrompt)));
   check("a recording Plaud is still processing stays unread so the next refresh retries it", !s.meta.sync.processedFileIds.includes("of_new2") && s.meta.sync.processedFileIds.includes("of_new1") && /still processing/.test(s.meta.sync.note), s.meta.sync.note);
   check("sync puts new items in the Inbox with a suggestion", synced.length === 2 && synced.every((i) => i.lane === "inbox") && synced.find((i) => /dentist/.test(i.title)).suggestSub === "other" && synced.find((i) => /budget/.test(i.title)).suggestLane === "work");
   check("sync never reorders items you already placed", s.items.i3.lane === "work" && s.items.i3.rank === savedRank);

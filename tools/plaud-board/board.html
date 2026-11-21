@@ -921,9 +921,15 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
   function actionLines(tabs) {
     var out = [];
     (Array.isArray(tabs) ? tabs : []).forEach(function (t) {
-      String(t.data_content || "").split("\n").forEach(function (ln) {
-        if (/^\s*- \[[ xX]\]/.test(ln) || /^>\s*\d+\./.test(ln)) out.push(ln.trim().slice(0, 400));
+      var txt = String(t.data_content || ""), found = 0;
+      txt.split("\n").forEach(function (ln) {
+        if (/^\s*- \[[ xX]\]/.test(ln) || /^>\s*\d+\./.test(ln)) { out.push(ln.trim().slice(0, 400)); found++; }
       });
+      // medical and therapy notes have a narrative plan instead of a checklist: pass that section on
+      if (!found) {
+        var m = txt.search(/^#{1,3}\s*(Plan|Next Steps|Action)/im);
+        if (m >= 0) out.push("PLAN SECTION: " + txt.slice(m, m + 1500).replace(/\s+/g, " "));
+      }
     });
     return out.slice(0, 60);
   }
@@ -970,7 +976,7 @@ details.archive summary { cursor: pointer; color: var(--muted); font-size: 13px;
       setStatus("Sorting new action items…");
       var s = subs();
       var prompt = "You maintain a personal action-item backlog for its owner. Return JSON only, shaped {\"items\":[{\"title\":string,\"detail\":string,\"lane\":\"work\"|\"personal\",\"sub\":string,\"due\":string,\"source\":string}]}.\n" +
-        "Source: lines from the notes of new voice recordings. Lines like '- [ ] text -- *Owner* date' are action items; lines starting with '> 1.' are AI suggestions (use only if they name a clear action for the owner).\n" +
+        "Source: lines from the notes of new voice recordings. Lines like '- [ ] text -- *Owner* date' are action items; lines starting with '> 1.' are AI suggestions (use only if they name a clear action for the owner). A line starting 'PLAN SECTION:' is the narrative plan of a medical or therapy note: include only things the owner (the patient or client) is asked to do, not things the clinician does.\n" +
         "Rules: keep only actions the owner owns or shares (skip ones owned only by others). title: short imperative, under 90 characters. detail: one or two sentences of useful context. due: YYYY-MM-DD only if a date is explicit, else empty. source: short label such as 'Nov 19, 1:1 with Rachel'. lane: your suggestion for where it belongs, 'work' for professional meetings, otherwise 'personal'. sub (personal only, else empty): one of " + JSON.stringify(s.map(function (x) { return { id: x.id, name: x.name }; })) + "; use 'other' if unsure.\n" +
         "Do NOT include anything that means the same as an already-tracked title (done and archived count as tracked). Already tracked: " + JSON.stringify(items.map(function (i) { return i.title; })) + "\n" +
         "Recordings: " + JSON.stringify(got.notes);
